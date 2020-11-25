@@ -130,7 +130,6 @@ class RemoteFileDialog(QtWidgets.QDialog):
         self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
-        self.fillLineEditWithClickedTableItem(item)
         self.push_button.click()
 
     def loadIntoTableWidget(self, data):
