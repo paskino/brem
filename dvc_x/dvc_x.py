@@ -103,9 +103,10 @@ class DVCRem:
 
     def listdir(self,path='./'):
         sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
+        data_dir = sftp.listdir(path=path)
         data = sftp.listdir_attr(path=path)
         sftp.close()
-        return data
+        return data_dir,data
 
     def authorize_key(self,filename):
         ff='randomfiletoauthorize.sh'
@@ -120,8 +121,8 @@ class DVCRem:
                     '''.format(f=filename),file=f)
         self.put_file(ff)
         self.run("/bin/sh ./{}".format(ff))
-#        self.remove_file(ff)
-#        self.remove_file(filename)
+        self.remove_file(ff)
+        self.remove_file(filename)
 
 
 

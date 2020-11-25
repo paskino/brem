@@ -8,6 +8,8 @@ a=drx.DVCRem()
 a.login(passphrase=False)
 
 #a.generate_keys()
-a.authorize_key('mykey-rsa.pub')
+#a.authorize_key('mykey-rsa.pub')
+print(a.listdir())
 a.logout()
+
 

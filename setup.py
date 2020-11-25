@@ -17,8 +17,6 @@ install_requires = [
     'paramiko>=2.7.2',
     'flake8',
     'coverage',
-    'pytest',
-    'pytest-cov',
     'tox',
     'sphinx'
 ]
