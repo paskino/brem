@@ -18,7 +18,8 @@ install_requires = [
     'flake8',
     'coverage',
     'tox',
-    'sphinx'
+    'sphinx',
+    'pyside2'
 ]
 
 name = "dvc_x"
@@ -30,7 +31,7 @@ setup(name='dvc_x',
       author = 'Alin M Elena, Edoardo Pasca',
       author_email = 'alin-marin.elena@stfc.ac.uk, edoardo.pasca@stfc.ac.uk',
       url = '',
-      packages = ['dvc_x'],
+      packages = ['dvc_x', 'dvc_x.ui'],
       license = 'BSD-3',
       install_requires=install_requires,
       classifiers = [
