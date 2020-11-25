@@ -8,13 +8,14 @@ class DVCRem:
     """ Main class of a dvcrem"""
     __version__ = "0.0.1"  #
 
-    def __init__(self,logfile=None, port=None, host=None,username=None,private_key=None):
+    def __init__(self,logfile=None, port=None, host=None,username=None,\
+        private_key=None):
         self.logfile = "ssh.log"
 
-        self.port = 22
-        self.host = 'scarf.rl.ac.uk'
-        self.username = 'scarf562'
-        self.private_key = '/home/drFaustroll/.ssh/dvc'
+        self.port = port
+        self.host = host
+        self.username = username
+        self.private_key = private_key
         if private_key is not None:
             self.private_key = private_key
         if logfile is not None:
@@ -25,7 +26,7 @@ class DVCRem:
             self.host = host
         if username is not None:
             self.username = username
-        ssh.util.log_to_file("test.log")
+        ssh.util.log_to_file(self.logfile)
         self.identity = None
         self.channel = None
         self.client = None

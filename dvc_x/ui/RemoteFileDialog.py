@@ -5,11 +5,14 @@ from PySide2.QtGui import QRegExpValidator
 from PySide2.QtCore import QRegExp
 import glob
 from functools import partial
+import dvc_x as drx
+
 
 
 class RemoteFileDialog(QtWidgets.QDialog):
 
-    def __init__(self, parent = None, url=None):
+    def __init__(self, parent = None, \
+        logfile=None, port=None, host=None, username=None, private_key=None):
         QtWidgets.QDialog.__init__(self, parent)
 
         # self.setWindowModality(QtCore.Qt.ApplicationModal)
@@ -54,7 +57,18 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
         self.setMinimumWidth(800)
         self.setMinimumHeight(600)
+
+        self.conn = self.setupConnection(logfile=logfile, port=port, \
+            host=host, username=username, private_key=private_key)
+
         self.show()
+    def setupConnection(self, logfile=None, port=None, host=None, \
+            username=None, private_key=None):
+        
+        a=drx.DVCRem(logfile=logfile, port=port, host=host, username=username, private_key=private_key)
+
+        return a
+
     def setup_menubar(self):
         pass
 
@@ -81,11 +95,24 @@ class RemoteFileDialog(QtWidgets.QDialog):
     def globDirectoryAndFillTable(self):
         # load data into table widget
         # data = [('file_{}.tiff'.format(i), '{} kb'.format(i)) for i in range(10)]
-        directory = os.path.abspath(self.line_edit.text())
-        data = glob.glob(os.path.join(directory, "*"))
+        
+        # directory = os.path.abspath(self.line_edit.text())
+
+        # data = glob.glob(os.path.join(directory, "*"))
+        # ddata = []
+        # for el in data:
+        #     ddata.append((el, "dir" if os.path.isdir(el) else "file"))
+        # self.loadIntoTableWidget(ddata)
+        directory = self.line_edit.text()
+        print ("trying to list ", directory)
+        self.conn.login(passphrase=False)
+        data = self.conn.listdir(path=directory)
+        print (data)
         ddata = []
-        for el in data:
-            ddata.append((el, "dir" if os.path.isdir(el) else "file"))
+        for el in data[1]:
+            ddata.append((data[0], el))
+        print (ddata)
+        self.conn.logout()
         self.loadIntoTableWidget(ddata)
 
 
@@ -99,7 +126,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         return tableWidget
 
     def fillLineEditWithClickedTableItem(self, item):
-        self.line_edit.setText(item.text())
+        self.line_edit.setText(self.line_edit.text() + '/' + item.text())
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
         self.fillLineEditWithClickedTableItem(item)
