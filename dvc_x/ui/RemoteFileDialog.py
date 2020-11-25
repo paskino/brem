@@ -1,5 +1,6 @@
 import sys
 import os
+import posixpath
 from PySide2 import QtCore, QtWidgets
 from PySide2.QtGui import QRegExpValidator
 from PySide2.QtCore import QRegExp
@@ -103,7 +104,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         # for el in data:
         #     ddata.append((el, "dir" if os.path.isdir(el) else "file"))
         # self.loadIntoTableWidget(ddata)
-        directory = self.line_edit.text()
+        directory = posixpath.abspath(self.line_edit.text())
         print ("trying to list ", directory)
         self.conn.login(passphrase=False)
         data = self.conn.listdir(path=directory)
@@ -126,7 +127,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         return tableWidget
 
     def fillLineEditWithClickedTableItem(self, item):
-        self.line_edit.setText(self.line_edit.text() + '/' + item.text())
+        self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
         self.fillLineEditWithClickedTableItem(item)
