@@ -29,6 +29,7 @@ class DVCRem:
         self.identity = None
         self.channel = None
         self.client = None
+        self.sftp =  None
 
     def login(self,passphrase=False):
 
@@ -45,6 +46,7 @@ class DVCRem:
         self.client.set_missing_host_key_policy(ssh.AutoAddPolicy())
         self.client.connect(self.host, self.port, self.username, pkey=self.identity)
         self.channel = self.client.invoke_shell()
+        self.sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
 
     def login_pw(self):
         print('trying to login to {h} on port {p} with username {u} please provide password: '.format(h=self.host,p=self.port,u=self.username))
@@ -56,6 +58,7 @@ class DVCRem:
         self.channel = self.client.invoke_shell()
 
     def logout(self):
+        self.sftp.close()
         self.channel.close()
         self.client.close()
 
@@ -87,26 +90,23 @@ class DVCRem:
 
     def put_file(self,filename):
         # check file exists TBD
-        sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
-        sftp.put(filename, filename)
-        sftp.close()
+        self.sftp.put(filename, filename)
 
     def get_file(self,filename):
-        sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
-        sftp.get(filename, filename)
-        sftp.close()
+        self.sftp.get(filename, filename)
 
     def remove_file(self,filename):
-        sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
-        sftp.remove(filename)
-        sftp.close()
+        self.sftp.remove(filename)
 
     def listdir(self,path='./'):
-        sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
-        data_dir = sftp.listdir(path=path)
-        data = sftp.listdir_attr(path=path)
-        sftp.close()
-        return data_dir,data
+        data_dir = self.sftp.listdir(path=path)
+        data = self.sftp.listdir_attr(path=path)
+        cd = self.sftp.getcwd()
+        return cd, data_dir,data
+
+    def changedir(self,dirname):
+        self.sftp.chdir(dirname)
+
 
     def authorize_key(self,filename):
         ff='randomfiletoauthorize.sh'
