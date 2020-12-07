@@ -121,26 +121,20 @@ class DVCRem:
         self.remove_file(ff)
         self.remove_file(filename)
 
-    def submit_job(self,jdir):
+    def submit_job(self,jdir,job,nodes=1,tps=32,name="mytest",cons="amd",time="00:20:00"):
 
         ff="submit.slurm"
-        nodes=1
-        tps=32
-        name="mytest"
-        cons="amd"
-        time="00:20:00"
         self.changedir(jdir)
         with open(ff,'w') as f:
             print('''#!/usr/bin/env bash
-            #SBATCH --nodes={nodes}
-            #SBATCH --tasks-per-node={tps}
-            #SBATCH --job-name="{name}"
-            #SBATCH -C [{cons}]
-            #SBATCH -t {time}
+#SBATCH --nodes={nodes}
+#SBATCH --tasks-per-node={tps}
+#SBATCH --job-name="{name}"
+#SBATCH -C [{cons}]
+#SBATCH -t {time}
 
-            sleep 100
-
-            '''.format(nodes=nodes, tps=tps,cons=cons,name=name,time=time),file=f)
+{job}
+            '''.format(nodes=nodes, tps=tps,cons=cons,name=name,time=time,job=job),file=f)
         self.put_file(ff)
         stdout, stderr = self.run("cd {} && sbatch ./{}".format(jdir,ff))
         a=stdout.strip().split()
@@ -154,7 +148,7 @@ class DVCRem:
 
     def job_status(self,jid):
          stdout, stderr = self.run("scontrol show jobid -dd  {} | grep JobState | cut -f 2 -d = | cut -f 1 -d ' '".format(jid))
-         return stdout
+         return stdout.strip()
 
     def job_cancel(self,jid):
          stdout, stderr = self.run("scancel  {}".format(jid))

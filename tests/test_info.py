@@ -12,7 +12,7 @@ a.login(passphrase=False)
 #a.changedir('.')
 #print(a.listdir())
 
-jobid = a.submit_job("/home/vol02/scarf562/playground/dvc")
+jobid = a.submit_job("/home/vol02/scarf562/playground/dvc","sleep 100")
 
 print(jobid)
 
