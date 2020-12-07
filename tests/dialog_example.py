@@ -24,9 +24,14 @@ class MainUI(QtWidgets.QMainWindow):
                                     host=host, 
                                     username=username,
                                     private_key=private_key)
+        dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
+        
         dialogue.exec()
 
         self.show()
+    def getSelected(self, dialogue):
+        for el in dialogue.selected:
+            print ("Return from dialogue", el)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

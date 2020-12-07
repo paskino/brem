@@ -65,6 +65,10 @@ class RemoteFileDialog(QtWidgets.QDialog):
             host=host, username=username, private_key=private_key)
 
         self.show()
+    @property
+    def Ok(self):
+        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)
+
     def setupConnection(self, logfile=None, port=None, host=None, \
             username=None, private_key=None):
         
@@ -78,8 +82,11 @@ class RemoteFileDialog(QtWidgets.QDialog):
     def accepted(self):
         sel = self.tableWidget.selectedItems()
         if len(sel) > 0:
+            selected = []
             for it in sel:
                 print ("Selected", it.text())
+                selected.append((self.widgets['lineEdit'].text(), it.text()))
+            self.selected = selected
             self.close()
 
     def rejected(self):
