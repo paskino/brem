@@ -1,7 +1,7 @@
 import sys
 import os
 import posixpath
-from PySide2 import QtCore, QtWidgets
+from PySide2 import QtCore, QtWidgets, QtGui
 from PySide2.QtGui import QRegExpValidator
 from PySide2.QtCore import QRegExp
 import glob
@@ -27,15 +27,15 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
         bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(lambda: self.accepted())
         bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
-
-        # bb.accepted.connect(self.accepted)
-        # print(  bb.button(QtWidgets.QDialogButtonBox.Ok) )
+        
         # Add vertical layout to dock contents
         vl = QtWidgets.QVBoxLayout(self)
-        vl.setContentsMargins(0, 0, 0, 0)
+        vl.setContentsMargins(10, 10, 10, 10)
 
         # create input text for starting directory
         line_edit, push_button = self.createLineEditForStartingDirectory()
+        # set the focus on the Browse button
+        push_button.setDefault(True)
         # create table widget
         tw = self.createTableWidget()
 
@@ -46,10 +46,12 @@ class RemoteFileDialog(QtWidgets.QDialog):
         vl.addWidget(tw)
         vl.addWidget(bb)
 
-        # self.setStandardButtons(bb)
         self.setLayout(vl)
 
         # save references 
+        self.widgets = {'layout': vl, 'buttonBox':bb, 'tableWidget': tw, 
+                        'browseButton': push_button, 'lineEdit': line_edit, 
+                        }
         self.layout = vl
         self.buttonBox = bb
         self.tableWidget = tw
@@ -75,9 +77,10 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
     def accepted(self):
         sel = self.tableWidget.selectedItems()
-        for it in sel:
-            print ("Selected", it.text())
-        self.close()
+        if len(sel) > 0:
+            for it in sel:
+                print ("Selected", it.text())
+            self.close()
 
     def rejected(self):
         self.close()
@@ -91,30 +94,26 @@ class RemoteFileDialog(QtWidgets.QDialog):
         pb.clicked.connect(lambda: self.globDirectoryAndFillTable())
         le = QtWidgets.QLineEdit(self)
         le.returnPressed.connect(lambda: self.globDirectoryAndFillTable())
+        le.setClearButtonEnabled(True)
         return le, pb
 
     def globDirectoryAndFillTable(self):
         # load data into table widget
-        # data = [('file_{}.tiff'.format(i), '{} kb'.format(i)) for i in range(10)]
-        
-        # directory = os.path.abspath(self.line_edit.text())
-
-        # data = glob.glob(os.path.join(directory, "*"))
-        # ddata = []
-        # for el in data:
-        #     ddata.append((el, "dir" if os.path.isdir(el) else "file"))
-        # self.loadIntoTableWidget(ddata)
+        # set OverrideCursor to WaitCursor
+        QtGui.QGuiApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         directory = posixpath.abspath(self.line_edit.text())
-        print ("trying to list ", directory)
+        # print ("trying to list ", directory)
         self.conn.login(passphrase=False)
         data = self.conn.listdir(path=directory)
-        print (data)
+        # print (data)
         ddata = []
         for el in data[1]:
             ddata.append((data[0], el))
-        print (ddata)
+        # print (ddata)
         self.conn.logout()
         self.loadIntoTableWidget(ddata)
+        # restore OverrideCursor
+        QtGui.QGuiApplication.restoreOverrideCursor()
 
 
     def createTableWidget(self):
@@ -142,29 +141,6 @@ class RemoteFileDialog(QtWidgets.QDialog):
                 self.tableWidget.setItem(i, j, QtWidgets.QTableWidgetItem(str(w)))
         # tableWidget.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Name'))
         # tableWidget.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Type'))
-        self.tableWidget.setHorizontalHeaderLabels(['Name', 'Type'])
+        self.tableWidget.setHorizontalHeaderLabels(['Type', 'Name'])
         self.tableWidget.sortItems(1, order=QtCore.Qt.AscendingOrder)
 
-    # if self.interactiveEdit.isChecked() and self.tableDock.isVisible():
-    #         position = interactor.GetEventPosition()
-    #         print("pick position {}".format(position))
-    #         vox = self.vtkWidget.viewer.style.display2imageCoordinate(position, subvoxel=True)
-    #         print("pick vox {}".format(vox))
-    #         # print("[%d,%d,%d] : %.2g" % vox)
-    #         rows = self.tableWidget.rowCount()
-    #         cols = self.tableWidget.columnCount()
-    #         self.tableWidget.setRowCount(rows + 1)
-    #         if cols != 4:
-    #             self.tableWidget.setColumnCount(4)
-    #         for col in range(3):
-    #             self.tableWidget.setItem(rows, col+1,
-    #                                      QTableWidgetItem(str(vox[col])))
-    #         rows = self.tableWidget.rowCount()
-    #         print("rows", rows)
-    #         if rows == 1:
-    #             el = 1
-    #         else:
-    #             print("row {0} el {1} ".format(
-    #                 rows, self.tableWidget.item(rows-2, 0).text()))
-    #             el = int(self.tableWidget.item(rows-2, 0).text())
-    #         self.tableWidget.setItem(rows-1, 0, QTableWidgetItem(str(el+1)))
