@@ -82,15 +82,15 @@ class RemoteFileDialog(QtWidgets.QDialog):
     def rejected(self):
         self.close()
 
-    def createLineEditForStartingDirectory(self):
-        le = QtWidgets.QLineEdit(self)
+    def createLineEditForStartingDirectory(self):        
         #rx = QRegExp("[A-Za-z0-9]+")
         #validator = QRegExpValidator(rx, le) #need to check this
         #le.setValidator(validator)
         pb = QtWidgets.QPushButton()
         pb.setText("Browse..")
         pb.clicked.connect(lambda: self.globDirectoryAndFillTable())
-
+        le = QtWidgets.QLineEdit(self)
+        le.returnPressed.connect(lambda: self.globDirectoryAndFillTable())
         return le, pb
 
     def globDirectoryAndFillTable(self):
