@@ -65,11 +65,7 @@ class DVCRem:
 
     def run(self,command):
         stdin, stdout, stderr = self.client.exec_command(command)
-
-        print("stdout")
-        print(stdout.read())
-        print("stderr")
-        print(stderr.read())
+        return stdout.read(), stderr.read()
 
 
     def generate_keys(self,filename=None,bits=4096,passphrase=False):
@@ -124,6 +120,39 @@ class DVCRem:
         self.run("/bin/sh ./{}".format(ff))
         self.remove_file(ff)
         self.remove_file(filename)
+
+    def submit_job(self,jdir,job,nodes=1,tps=32,name="mytest",cons="amd",time="00:20:00"):
+
+        ff="submit.slurm"
+        self.changedir(jdir)
+        with open(ff,'w') as f:
+            print('''#!/usr/bin/env bash
+#SBATCH --nodes={nodes}
+#SBATCH --tasks-per-node={tps}
+#SBATCH --job-name="{name}"
+#SBATCH -C [{cons}]
+#SBATCH -t {time}
+
+{job}
+            '''.format(nodes=nodes, tps=tps,cons=cons,name=name,time=time,job=job),file=f)
+        self.put_file(ff)
+        stdout, stderr = self.run("cd {} && sbatch ./{}".format(jdir,ff))
+        a=stdout.strip().split()
+        if a[0] != "Submitted":
+            print(stderr)
+        return int(a[3])
+
+    def job_info(self,jid):
+        stdout, stderr = self.run("scontrol show jobid -dd  {}".format(jid))
+        return stdout
+
+    def job_status(self,jid):
+         stdout, stderr = self.run("scontrol show jobid -dd  {} | grep JobState | cut -f 2 -d = | cut -f 1 -d ' '".format(jid))
+         return stdout.strip()
+
+    def job_cancel(self,jid):
+         stdout, stderr = self.run("scancel  {}".format(jid))
+         return stdout
 
 
 
