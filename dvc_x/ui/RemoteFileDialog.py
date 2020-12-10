@@ -94,9 +94,6 @@ class RemoteFileDialog(QtWidgets.QDialog):
         self.close()
 
     def createLineEditForStartingDirectory(self):        
-        #rx = QRegExp("[A-Za-z0-9]+")
-        #validator = QRegExpValidator(rx, le) #need to check this
-        #le.setValidator(validator)
         
         pb = QtWidgets.QPushButton()
         pb.setText("Browse..")
@@ -107,8 +104,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
         
         up = QtWidgets.QPushButton()
-        # up.setStyle(QtWidgets.QStyle(QtWidgets.QStyle.SP_ArrowUp))
-        up.setText("Up")
+        up.setIcon(QtWidgets.QApplication.style().standardPixmap((QtWidgets.QStyle.SP_ArrowUp)))
         up.clicked.connect(lambda: self.goToParentDirectory())
         up.setFixedSize(QtCore.QSize(30,30))
         
