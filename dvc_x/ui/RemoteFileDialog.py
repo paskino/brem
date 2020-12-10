@@ -33,7 +33,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         vl.setContentsMargins(10, 10, 10, 10)
 
         # create input text for starting directory
-        line_edit, push_button = self.createLineEditForStartingDirectory()
+        hl, up, line_edit, push_button= self.createLineEditForStartingDirectory()
         # set the focus on the Browse button
         push_button.setDefault(True)
         # create table widget
@@ -41,7 +41,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
         
         # add Widgets to layout
-        vl.addWidget(line_edit)
+        vl.addLayout(hl)
         vl.addWidget(push_button)
         vl.addWidget(tw)
         vl.addWidget(bb)
@@ -51,7 +51,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         # save references 
         self.widgets = {'layout': vl, 'buttonBox':bb, 'tableWidget': tw, 
                         'browseButton': push_button, 'lineEdit': line_edit, 
-                        }
+                        'upButton': up, 'horizLayot': hl}
         self.layout = vl
         self.buttonBox = bb
         self.tableWidget = tw
@@ -64,6 +64,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         self.conn = self.setupConnection(logfile=logfile, port=port, \
             host=host, username=username, private_key=private_key)
 
+        self.setWindowTitle("Remote File Explorer on {}@{}:{}".format(username, host, port))
         self.show()
     @property
     def Ok(self):
@@ -96,13 +97,30 @@ class RemoteFileDialog(QtWidgets.QDialog):
         #rx = QRegExp("[A-Za-z0-9]+")
         #validator = QRegExpValidator(rx, le) #need to check this
         #le.setValidator(validator)
+        
         pb = QtWidgets.QPushButton()
         pb.setText("Browse..")
         pb.clicked.connect(lambda: self.globDirectoryAndFillTable())
+        
+        pb = QtWidgets.QPushButton()
+        pb.setText("Browse..")
+
+        
+        up = QtWidgets.QPushButton()
+        # up.setStyle(QtWidgets.QStyle(QtWidgets.QStyle.SP_ArrowUp))
+        up.setText("Up")
+        up.clicked.connect(lambda: self.goToParentDirectory())
+        up.setFixedSize(QtCore.QSize(30,30))
+        
         le = QtWidgets.QLineEdit(self)
         le.returnPressed.connect(lambda: self.globDirectoryAndFillTable())
         le.setClearButtonEnabled(True)
-        return le, pb
+
+        hl = QtWidgets.QHBoxLayout()
+        hl.addWidget(up)
+        hl.addWidget(le)
+        
+        return hl, up, le, pb
 
     def globDirectoryAndFillTable(self):
         # load data into table widget
@@ -122,6 +140,22 @@ class RemoteFileDialog(QtWidgets.QDialog):
         # restore OverrideCursor
         QtGui.QGuiApplication.restoreOverrideCursor()
 
+    def goToParentDirectory(self):
+        le = self.widgets['lineEdit']
+        if self.isDir(le.text()):
+            current_dir = posixpath.dirname(le.text())
+        else:
+            current_dir = posixpath.abspath(le.text())
+
+        parent_dir = posixpath.abspath(posixpath.join(current_dir, '..'))
+        
+        le.setText(str(parent_dir))
+        self.globDirectoryAndFillTable()
+
+    def isDir(self, path):
+        # this should be able to test if the address in the bar is a directory
+        # 
+        return False
 
     def createTableWidget(self):
         tableWidget = QtWidgets.QTableWidget()
@@ -133,10 +167,13 @@ class RemoteFileDialog(QtWidgets.QDialog):
         return tableWidget
 
     def fillLineEditWithClickedTableItem(self, item):
-        self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
+        # self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
+        pass
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
-        self.push_button.click()
+        self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
+        #self.push_button.click()
+        self.globDirectoryAndFillTable()
 
     def loadIntoTableWidget(self, data):
         if len(data) <= 0:
