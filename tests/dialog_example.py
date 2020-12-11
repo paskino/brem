@@ -27,7 +27,10 @@ class MainUI(QtWidgets.QMainWindow):
                                     private_key=private_key)
         dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
         
-        dialog = RemoteServerSettingDialog(self)
+        dialog = RemoteServerSettingDialog(self,port=port, 
+                                    host=host, 
+                                    username=username,
+                                    private_key=private_key)
         dialog.Ok.clicked.connect(lambda: self.getConnectionDetails(dialog))
         dialog.exec()
         # dialogue.exec()

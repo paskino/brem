@@ -22,7 +22,18 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         formWidget.uiElements['verticalLayout'].addWidget(bb)
         # set the layout
         self.setLayout(formWidget.uiElements['verticalLayout'])
-        self.setWindowTitle("Remote server settings".format(username, host, port))
+        self.setWindowTitle("Remote server settings")
+
+        if not port is None:
+            self.setServerPort(port)
+        if not host is None:
+            self.setServerName(host)
+        if not username is None:
+            self.setUsername(username)
+        if not private_key is None:
+            self.setPrivateKeyFile(private_key)
+
+
         
     def createUI(self):
         '''creates the form view for inputting the remote server data'''
@@ -91,7 +102,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         if os.path.exists(os.path.abspath(value)):
             self.formWidget.widgets['private_key_field'].setText(value)
     #
-    
+
     def accepted(self):
         server_name = self.formWidget.widgets['server_name_field'].text()
         server_port = self.formWidget.widgets['server_port_field'].text()
