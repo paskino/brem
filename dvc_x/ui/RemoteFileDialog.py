@@ -65,7 +65,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
             host=host, username=username, private_key=private_key)
 
         self.setWindowTitle("Remote File Explorer on {}@{}:{}".format(username, host, port))
-        self.show()
+        
     @property
     def Ok(self):
         return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)

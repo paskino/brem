@@ -4,6 +4,7 @@ from PySide2.QtCore import QRegExp
 import glob, sys, os
 from functools import partial
 from dvc_x.ui import RemoteFileDialog
+from dvc_x.ui import RemoteServerSettingDialog
 
 
 class MainUI(QtWidgets.QMainWindow):
@@ -26,12 +27,20 @@ class MainUI(QtWidgets.QMainWindow):
                                     private_key=private_key)
         dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
         
-        dialogue.exec()
+        dialog = RemoteServerSettingDialog(self)
+        dialog.Ok.clicked.connect(lambda: self.getConnectionDetails(dialog))
+        dialog.exec()
+        # dialogue.exec()
+
 
         self.show()
     def getSelected(self, dialogue):
-        for el in dialogue.selected:
-            print ("Return from dialogue", el)
+        if hasattr(dialogue, 'selected'):
+            for el in dialogue.selected:
+                print ("Return from dialogue", el)
+    def getConnectionDetails(self, dialog):
+        for k,v in dialog.connection_details.items():
+            print (k,v)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
