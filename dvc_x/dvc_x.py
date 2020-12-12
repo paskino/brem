@@ -108,7 +108,7 @@ class DVCRem:
     def authorize_key(self,filename):
         ff='randomfiletoauthorize.sh'
         self.put_file(filename)
-        with open(ff,'w') as f:
+        with open(ff,'w', newline='\n') as f:
             print('''
                     if [[ $(grep -c "$(cat mykey-rsa.pub)" ~/.ssh/authorized_keys) == 0 ]]; then
                         cat {f} >> .ssh/authorized_keys
@@ -125,7 +125,7 @@ class DVCRem:
 
         ff="submit.slurm"
         self.changedir(jdir)
-        with open(ff,'w') as f:
+        with open(ff,'w', newline='\n') as f:
             print('''#!/usr/bin/env bash
 #SBATCH --nodes={nodes}
 #SBATCH --tasks-per-node={tps}
