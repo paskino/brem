@@ -4,7 +4,7 @@ import dvc_x as drx
 from time import sleep
 #a=drx.DVCRem(private_key="/home/drFaustroll/.ssh/id_routers")
 
-a=drx.DVCRem(host="scarf.rl.ac.uk",username="scarf562",port=22,private_key="/home/drFaustroll/.ssh/dvc")
+a=drx.DVCRem(host="scarf.rl.ac.uk",username="scarf595",port=22,private_key="C:/Apps/cygwin64/home/ofn77899/.ssh/id_rsa")
 
 a.login(passphrase=False)
 
@@ -13,9 +13,10 @@ a.login(passphrase=False)
 #a.changedir('.')
 #print(a.listdir())
 inp="input.dvc"
-folder="/work3/cse/dvc/test-alin"
+folder="/work3/cse/dvc/test-edo"
+datafolder="/work3/cse/dvc/test_data"
 
-with open(inp,'w') as f:
+with open(inp,'w', newline='\n') as f:
     print("""###############################################################################
 #
 #
@@ -30,11 +31,11 @@ with open(inp,'w') as f:
 
 ### file names
 
-reference_filename      frame_000_f.npy         ### reference tomography image volume
-correlate_filename      frame_010_f.npy         ### correlation tomography image volume
+reference_filename\t{0}/frame_000_f.npy\t### reference tomography image volume
+correlate_filename\t{0}/frame_010_f.npy\t### correlation tomography image volume
 
-point_cloud_filename    small_grid.roi  ### file of search point locations
-output_filename         central_grid            ### base name for output files
+point_cloud_filename\t{1}/small_grid.roi\t### file of search point locations
+output_filename\t{1}/small_grid\t### base name for output files
 
 ### description of the image data files, all must be the same size and structure
 
@@ -70,7 +71,7 @@ subvol_aspect           1.0 1.0 1.0             ### subvolume aspect ratio
 
 
 
-""",file=f)
+""".format(datafolder,folder),file=f)
 
 a.changedir(folder)
 a.put_file(inp)
@@ -81,9 +82,9 @@ job="""
 module purge
 module load AMDmodules foss/2019b
 
-/work3/cse/dvc/codes/CCPi-DVC/build-amd/Core/dvc dvc_input.txt
-#{}
-""".format(inp)
+/work3/cse/dvc/codes/CCPi-DVC/build-amd/Core/dvc {0} > {1}
+#{0}
+""".format(inp, folder+'/dvc.out')
 
 
 
@@ -96,12 +97,15 @@ while status in [b'PENDING',b'RUNNING']:
         print("job is queueing")
     else:
         print("job is running")
+        # should tail the file in folder+'/dvc.out'
     sleep(20)
     status = a.job_status(jobid)
 
 print("retrieve output for job {}".format(jobid))
 a.changedir(folder)
 a.get_file("slurm-{}.out".format(jobid))
+# here we should fetch also all the output files defined at
+# output_filename\t{1}/small_grid\t### base name for output files
 
 a.logout()
 
