@@ -25,35 +25,25 @@ class UIFormWidget(object):
     '''
     def createForm(self):
         # Add vertical layout to dock contents
-        dockContentsVerticalLayout = QtWidgets.QVBoxLayout(self)
-        dockContentsVerticalLayout.setContentsMargins(10, 10, 10, 10)
+        verticalLayout = QtWidgets.QVBoxLayout(self)
+        verticalLayout.setContentsMargins(10, 10, 10, 10)
 
-        # Create widget for dock contents
-        internalDockWidget = QtWidgets.QWidget(self)
-
-        # Add vertical layout to dock widget
-        #internalWidgetVerticalLayout = QtWidgets.QVBoxLayout(internalDockWidget)
-        #internalWidgetVerticalLayout.setContentsMargins(0, 0, 0, 0)
-
-        dockContentsVerticalLayout.addWidget(internalDockWidget)
+        # Add vertical layout to main widget (self)
+        verticalLayout.addWidget(self)
         
         # Add group box
-        paramsGroupBox = QtWidgets.QGroupBox(internalDockWidget)
-
+        groupBox = QtWidgets.QGroupBox(self)
 
         # Add form layout to group box
-        groupBoxFormLayout = QtWidgets.QFormLayout(paramsGroupBox)
+        groupBoxFormLayout = QtWidgets.QFormLayout(groupBox)
 
         # Add elements to layout
-        dockContentsVerticalLayout.addWidget(paramsGroupBox)
-        #dockWidget.setWidget(dockWidgetContents)
+        verticalLayout.addWidget(groupBox)
 
         self.num_widgets = 0
         self.uiElements = {
-                'verticalLayout':dockContentsVerticalLayout, 
-                'internalWidget': internalDockWidget,
-                #'internalVerticalLayout': internalWidgetVerticalLayout, 
-                'groupBox' : paramsGroupBox,
+                'verticalLayout':verticalLayout, 
+                'groupBox' : groupBox,
                 'groupBoxFormLayout': groupBoxFormLayout}
         self.widgets = {}
 
