@@ -1,6 +1,8 @@
 from PySide2 import QtCore, QtGui, QtWidgets
 from dvc_x.ui.UIFormWidget import UIFormFactory
 import os
+import configparser
+
 
 class RemoteServerSettingDialog(QtWidgets.QDialog):
     def __init__(self, parent = None, \
@@ -15,7 +17,13 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
 
         formWidget = UIFormFactory.getQWidget(parent=self)
         self.formWidget = formWidget
-        
+        # add ComboBox for pre selection
+        combo = QtWidgets.QComboBox()
+        combo.activated.connect(lambda x: self.populateConnectionForm(x))
+        formWidget.uiElements['verticalLayout'].insertWidget(0,combo)
+
+        self.combo = combo
+
         self.createUI()
 
         # add the button box
@@ -32,6 +40,8 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.setUsername(username)
         if not private_key is None:
             self.setPrivateKeyFile(private_key)
+
+        self.loadConnectionSettingsFromFile()
 
 
         
@@ -137,6 +147,8 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             print ("connecting {}@{}:{} with private key {}".format(username, server_name, server_port, private_key))
             self.connection_details = {'username': username, 'server_name': server_name, 
                                        'server_port': server_port, 'private_key': private_key}
+            self.storeConnectionDetails(self.connection_details)
+            
             self.close()
 
     def rejected(self):
@@ -147,3 +159,33 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         mask = dialogue.getOpenFileName(self,"Select the private key file")[0]
         if mask is not None:
             self.formWidget.widgets['private_key_field'].setText(os.path.abspath(mask))
+    
+    def populateConnectionForm(self, index):
+        value = self.combo.currentText()
+        print ("Selected text ", index, value)
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        if value in config.sections():
+            c = config[value]
+            self.setServerName(c['server_name'])
+            self.setServerPort(int(c['server_port']))
+            self.setUsername(c['username'])
+            self.setPrivateKeyFile(c['private_key'])
+        
+    def storeConnectionDetails(self, details):
+        config = configparser.ConfigParser()
+        shortname = '{}@{}'.format(details['username'],details['server_name'])
+        config[shortname] = details
+        self.combo.addItem(shortname)
+        with open("config.ini",'w') as f:
+            config.write(f)
+
+    def loadConnectionSettingsFromFile(self, filename=None):
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        for value in config.sections():
+            c = config[value]
+            shortname = '{}@{}'.format(c['username'],c['server_name'])
+            self.combo.addItem(shortname)
+        self.combo.setCurrentIndex(-1)
+        

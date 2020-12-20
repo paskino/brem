@@ -29,7 +29,8 @@ class UIFormWidget(object):
         verticalLayout.setContentsMargins(10, 10, 10, 10)
 
         # Add vertical layout to main widget (self)
-        verticalLayout.addWidget(self)
+        # verticalLayout.addWidget(self)
+        self.setLayout(verticalLayout)
         
         # Add group box
         groupBox = QtWidgets.QGroupBox(self)
