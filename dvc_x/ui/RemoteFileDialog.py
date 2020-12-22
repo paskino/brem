@@ -125,7 +125,18 @@ class RemoteFileDialog(QtWidgets.QDialog):
         directory = posixpath.abspath(self.line_edit.text())
         # print ("trying to list ", directory)
         self.conn.login(passphrase=False)
-        data = self.conn.listdir(path=directory)
+        try:
+            data = self.conn.listdir(path=directory)
+        except FileNotFoundError as error:
+            # restore OverrideCursor
+            QtGui.QGuiApplication.restoreOverrideCursor()
+            # send message to user
+            msg = QtWidgets.QMessageBox(self)
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
+            msg.setWindowTitle('Error')
+            msg.setText("Error {}".format(str(error)))
+            msg.exec()
+            return
         # print (data)
         ddata = []
         for el in data[1]:
