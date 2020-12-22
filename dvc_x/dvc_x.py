@@ -104,6 +104,8 @@ class DVCRem:
     def changedir(self,dirname):
         self.sftp.chdir(dirname)
 
+    def stat(self, path):
+        return self.sftp.stat(path)
 
     def authorize_key(self,filename):
         ff='randomfiletoauthorize.sh'

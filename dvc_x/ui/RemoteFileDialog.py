@@ -7,6 +7,7 @@ from PySide2.QtCore import QRegExp
 import glob
 from functools import partial
 import dvc_x as drx
+import stat
 
 
 
@@ -160,9 +161,10 @@ class RemoteFileDialog(QtWidgets.QDialog):
         self.globDirectoryAndFillTable()
 
     def isDir(self, path):
-        # this should be able to test if the address in the bar is a directory
-        # 
-        return False
+        self.conn.login(passphrase=False)
+        rstat = self.conn.stat(path)
+        self.conn.logout()
+        return stat.S_IFMT(rstat.st_mode) == stat.S_IFDIR
 
     def createTableWidget(self):
         tableWidget = QtWidgets.QTableWidget()
@@ -178,7 +180,15 @@ class RemoteFileDialog(QtWidgets.QDialog):
         pass
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
-        self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
+        row = item.row()
+        fsitem = self.tableWidget.item(row, 1)
+        # test if the join dir is still a directory or is a file
+        new_path = posixpath.join(self.line_edit.text() , fsitem.text())
+        if self.isFile(new_path):
+            # it should select and close
+            self.Ok.click()
+            return
+        self.line_edit.setText(new_path)
         #self.push_button.click()
         self.globDirectoryAndFillTable()
 
@@ -194,4 +204,10 @@ class RemoteFileDialog(QtWidgets.QDialog):
         # tableWidget.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Type'))
         self.tableWidget.setHorizontalHeaderLabels(['Type', 'Name'])
         self.tableWidget.sortItems(1, order=QtCore.Qt.AscendingOrder)
+        self.tableWidget.resizeColumnsToContents()
 
+    def isFile(self, path):
+        self.conn.login(passphrase=False)
+        rstat = self.conn.stat(path)
+        self.conn.logout()
+        return stat.S_IFMT(rstat.st_mode) == stat.S_IFREG
