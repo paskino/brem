@@ -127,7 +127,16 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
 
         # add the field
         clayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, combo)
+        # add delete preset button
+
+        pb = QtWidgets.QPushButton()
+        pb.setText("Delete Preset")
+        pb.clicked.connect(lambda: self.deleteConnectionSetting())
+        clayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, pb)
+
         cwidget.setLayout(clayout)
+
+        
 
         return cwidget, combo
 
@@ -209,6 +218,8 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         
     def storeConnectionDetails(self, details):
         config = configparser.ConfigParser()
+        if os.path.exists(self.settings_filename):
+            config.read(self.settings_filename)
         shortname = '{}@{}'.format(details['username'],details['server_name'])
         config[shortname] = details
         self.combo.addItem(shortname)
@@ -223,4 +234,20 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             shortname = '{}@{}'.format(c['username'],c['server_name'])
             self.combo.addItem(shortname)
         self.combo.setCurrentIndex(-1)
+    
+    def deleteConnectionSetting(self):
+        index = self.combo.currentIndex()
+        if index == -1:
+            return
+        value = self.combo.currentText()
+        print ("Selected text ", index, value)
+        config = configparser.ConfigParser()
+        config.read(self.settings_filename)
+
+        config.pop(value)
+        with open(self.settings_filename,'w') as f:
+            config.write(f)
+
+        # remove from combo
+        self.combo.removeItem(index)
         
