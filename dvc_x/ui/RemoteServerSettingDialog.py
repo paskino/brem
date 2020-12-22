@@ -17,14 +17,15 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
 
         formWidget = UIFormFactory.getQWidget(parent=self)
         self.formWidget = formWidget
-        # add ComboBox for pre selection
-        combo = QtWidgets.QComboBox()
-        combo.activated.connect(lambda x: self.populateConnectionForm(x))
-        formWidget.uiElements['verticalLayout'].insertWidget(0,combo)
 
+        # add ComboBox for pre selection, also with a label
+        cwidget, combo = self.createPresetComboBox()
         self.combo = combo
 
-        self.createUI()
+        formWidget.uiElements['verticalLayout'].insertWidget(0,cwidget)
+
+        
+        self.createFormWidget()
 
         # add the button box
         formWidget.uiElements['verticalLayout'].addWidget(bb)
@@ -62,7 +63,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         else:
             self._settings_filename = dpath
 
-    def createUI(self):
+    def createFormWidget(self):
         '''creates the form view for inputting the remote server data'''
         fw = self.formWidget
         # create the form view
@@ -112,6 +113,23 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget.clicked.connect(lambda: self.browseForPrivateKeyFile())
         # finally add to the form widget
         fw.addWidget('button_private_key', qlabel, qwidget)
+    
+    def createPresetComboBox(self):
+        combo = QtWidgets.QComboBox()
+        combo.activated.connect(lambda x: self.populateConnectionForm(x))
+        
+        cwidget = QtWidgets.QWidget()
+        clayout = QtWidgets.QFormLayout()
+        # add the label
+        qlabel = QtWidgets.QLabel()
+        qlabel.setText("Presets: ")
+        clayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, qlabel)
+
+        # add the field
+        clayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, combo)
+        cwidget.setLayout(clayout)
+
+        return cwidget, combo
 
     @property
     def Ok(self):
