@@ -6,7 +6,7 @@ import configparser
 
 class RemoteServerSettingDialog(QtWidgets.QDialog):
     def __init__(self, parent = None, \
-        logfile=None, port=None, host=None, username=None, private_key=None):
+        settings_filename=None, port=None, host=None, username=None, private_key=None):
         QtWidgets.QDialog.__init__(self, parent)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
                                      | QtWidgets.QDialogButtonBox.Cancel)
@@ -40,11 +40,28 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.setUsername(username)
         if not private_key is None:
             self.setPrivateKeyFile(private_key)
+        
+        self.settings_filename = settings_filename
 
         self.loadConnectionSettingsFromFile()
 
 
-        
+    @property
+    def settings_filename(self):
+        return self._settings_filename
+
+    @settings_filename.setter
+    def settings_filename(self, value):
+        dpath = os.path.abspath(value)
+        if os.path.isdir(dpath):
+            self._settings_filename = os.path.join(dpath, 'remote_config.ini')
+        elif os.path.isfile(dpath):
+            self._settings_filename = dpath
+        elif os.path.exists(dpath):
+            raise ValueError('{} exists and is not a file or a directory'.format(dpath))
+        else:
+            self._settings_filename = dpath
+
     def createUI(self):
         '''creates the form view for inputting the remote server data'''
         fw = self.formWidget
@@ -164,7 +181,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         value = self.combo.currentText()
         print ("Selected text ", index, value)
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read(self.settings_filename)
         if value in config.sections():
             c = config[value]
             self.setServerName(c['server_name'])
@@ -177,12 +194,12 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         shortname = '{}@{}'.format(details['username'],details['server_name'])
         config[shortname] = details
         self.combo.addItem(shortname)
-        with open("config.ini",'w') as f:
+        with open(self.settings_filename,'w') as f:
             config.write(f)
 
     def loadConnectionSettingsFromFile(self, filename=None):
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read(self.settings_filename)
         for value in config.sections():
             c = config[value]
             shortname = '{}@{}'.format(c['username'],c['server_name'])

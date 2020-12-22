@@ -41,7 +41,8 @@ class MainUI(QtWidgets.QMainWindow):
         dialog = RemoteServerSettingDialog(self,port=None, 
                                     host=None, 
                                     username=None,
-                                    private_key=None)
+                                    private_key=None,
+                                    settings_filename='remote_config.ini')
         dialog.Ok.clicked.connect(lambda: self.getConnectionDetails(dialog))
         dialog.exec()
     def browseRemote(self):
