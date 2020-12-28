@@ -14,7 +14,8 @@ import stat
 class RemoteFileDialog(QtWidgets.QDialog):
 
     def __init__(self, parent = None, \
-        logfile=None, port=None, host=None, username=None, private_key=None):
+        logfile=None, port=None, host=None, username=None, private_key=None,
+        remote_os=None):
         QtWidgets.QDialog.__init__(self, parent)
 
         # self.setWindowModality(QtCore.Qt.ApplicationModal)
@@ -63,7 +64,8 @@ class RemoteFileDialog(QtWidgets.QDialog):
         self.setMinimumHeight(600)
 
         self.conn = self.setupConnection(logfile=logfile, port=port, \
-            host=host, username=username, private_key=private_key)
+            host=host, username=username, private_key=private_key,
+            remote_os=remote_os)
 
         self.setWindowTitle("Remote File Explorer on {}@{}:{}".format(username, host, port))
         
@@ -72,7 +74,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)
 
     def setupConnection(self, logfile=None, port=None, host=None, \
-            username=None, private_key=None):
+            username=None, private_key=None, remote_os=None):
         
         a=drx.DVCRem(logfile=logfile, port=port, host=host, username=username, private_key=private_key)
 

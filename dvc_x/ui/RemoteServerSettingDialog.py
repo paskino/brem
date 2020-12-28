@@ -97,6 +97,17 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         # finally add to the form widget
         fw.addWidget('username', qlabel, qwidget)
 
+        # add user name
+        qlabel = QtWidgets.QLabel(fw.groupBox)
+        qlabel.setText("Remote OS: ")
+        qwidget = QtWidgets.QComboBox(fw.groupBox)
+        qwidget.addItem("POSIX")
+        qwidget.addItem("Windows")
+        qwidget.setCurrentIndex(0)
+        qwidget.setEnabled(False)
+        # finally add to the form widget
+        fw.addWidget('remote_os', qlabel, qwidget)
+
         # add private key
         qlabel = QtWidgets.QLabel(fw.groupBox)
         qlabel.setText("Private key file: ")
@@ -162,6 +173,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         server_port = self.formWidget.widgets['server_port_field'].text()
         username    = self.formWidget.widgets['username_field'].text()
         private_key = os.path.join( self.formWidget.widgets['private_key_field'].text() )
+        remote_os = self.formWidget.widgets['remote_os_field'].currentText()
 
         error = 0 
         error_msg = ''
@@ -190,7 +202,9 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         else:
             print ("connecting {}@{}:{} with private key {}".format(username, server_name, server_port, private_key))
             self.connection_details = {'username': username, 'server_name': server_name, 
-                                       'server_port': server_port, 'private_key': private_key}
+                                       'server_port': server_port, 
+                                       'private_key': private_key,
+                                       'remote_os' : remote_os }
             self.storeConnectionDetails(self.connection_details)
             
             self.close()

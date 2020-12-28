@@ -9,13 +9,15 @@ class DVCRem:
     __version__ = "0.0.1"  #
 
     def __init__(self,logfile=None, port=None, host=None,username=None,\
-        private_key=None):
+        private_key=None, remote_os=None):
         self.logfile = "ssh.log"
 
         self.port = port
         self.host = host
         self.username = username
         self.private_key = private_key
+        self.remote_os = remote_os
+        
         if private_key is not None:
             self.private_key = private_key
         if logfile is not None:
