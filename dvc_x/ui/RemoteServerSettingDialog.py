@@ -104,7 +104,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget.addItem("POSIX")
         qwidget.addItem("Windows")
         qwidget.setCurrentIndex(0)
-        qwidget.setEnabled(False)
+        qwidget.setEnabled(True)
         # finally add to the form widget
         fw.addWidget('remote_os', qlabel, qwidget)
 
@@ -167,8 +167,8 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         if os.path.exists(os.path.abspath(value)):
             self.formWidget.widgets['private_key_field'].setText(value)
     def setRemoteOS(self, value):
-        if os.path.exists(os.path.abspath(value)):
-            self.formWidget.widgets['remote_os'].setText(value)
+        idx = 0 if value == 'POSIX' else 1
+        self.formWidget.widgets['remote_os_field'].setCurrentIndex(idx)
     #
 
     def accepted(self):
