@@ -166,6 +166,9 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
     def setPrivateKeyFile(self, value):
         if os.path.exists(os.path.abspath(value)):
             self.formWidget.widgets['private_key_field'].setText(value)
+    def setRemoteOS(self, value):
+        if os.path.exists(os.path.abspath(value)):
+            self.formWidget.widgets['remote_os'].setText(value)
     #
 
     def accepted(self):
@@ -229,6 +232,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.setServerPort(int(c['server_port']))
             self.setUsername(c['username'])
             self.setPrivateKeyFile(c['private_key'])
+            self.setRemoteOS(c['remote_os'])
         
     def storeConnectionDetails(self, details):
         config = configparser.ConfigParser()
