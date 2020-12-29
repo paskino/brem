@@ -1,6 +1,6 @@
 import sys
 import os
-import posixpath
+import posixpath, ntpath
 from PySide2 import QtCore, QtWidgets, QtGui
 from PySide2.QtGui import QRegExpValidator
 from PySide2.QtCore import QRegExp
@@ -9,7 +9,7 @@ from functools import partial
 import dvc_x as drx
 import stat
 
-
+dpath = os.path
 
 class RemoteFileDialog(QtWidgets.QDialog):
 
@@ -77,7 +77,11 @@ class RemoteFileDialog(QtWidgets.QDialog):
             username=None, private_key=None, remote_os=None):
         
         a=drx.DVCRem(logfile=logfile, port=port, host=host, username=username, private_key=private_key)
-
+        global dpath 
+        dpath = posixpath 
+        if remote_os == 'Windows':
+            dpath = ntpath
+        print (remote_os, dpath)
         return a
 
     def setup_menubar(self):
@@ -125,7 +129,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         # load data into table widget
         # set OverrideCursor to WaitCursor
         QtGui.QGuiApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-        directory = posixpath.abspath(self.line_edit.text())
+        directory = dpath.abspath(self.line_edit.text())
         # print ("trying to list ", directory)
         self.conn.login(passphrase=False)
         try:
@@ -153,12 +157,12 @@ class RemoteFileDialog(QtWidgets.QDialog):
     def goToParentDirectory(self):
         le = self.widgets['lineEdit']
         if self.isDir(le.text()):
-            current_dir = posixpath.dirname(le.text())
+            current_dir = dpath.abspath(le.text())
         else:
-            current_dir = posixpath.abspath(le.text())
+            current_dir = dpath.dirname(le.text())
 
-        parent_dir = posixpath.abspath(posixpath.join(current_dir, '..'))
-        
+        parent_dir = dpath.abspath(dpath.join(current_dir, '..'))
+        print ("current_dir, parent_dir", current_dir, parent_dir )
         le.setText(str(parent_dir))
         self.globDirectoryAndFillTable()
 
@@ -178,14 +182,13 @@ class RemoteFileDialog(QtWidgets.QDialog):
         return tableWidget
 
     def fillLineEditWithClickedTableItem(self, item):
-        # self.line_edit.setText(posixpath.join(self.line_edit.text() , item.text()))
         pass
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
         row = item.row()
         fsitem = self.tableWidget.item(row, 1)
         # test if the join dir is still a directory or is a file
-        new_path = posixpath.join(self.line_edit.text() , fsitem.text())
+        new_path = dpath.join(self.line_edit.text() , fsitem.text())
         if self.isFile(new_path):
             # it should select and close
             self.Ok.click()

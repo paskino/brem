@@ -55,6 +55,7 @@ class MainUI(QtWidgets.QMainWindow):
             port = self.connection_details['server_port']
             host = self.connection_details['server_name']
             private_key = self.connection_details['private_key']
+            remote_os = self.connection_details['remote_os']
 
             logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
             logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
@@ -63,7 +64,8 @@ class MainUI(QtWidgets.QMainWindow):
                                         port=port, 
                                         host=host, 
                                         username=username,
-                                        private_key=private_key)
+                                        private_key=private_key,
+                                        remote_os=remote_os)
             dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
             
             dialogue.exec()
