@@ -4,7 +4,7 @@ from PySide2.QtCore import QRegExp
 import glob, sys, os
 from functools import partial
 from dvc_x.ui import RemoteFileDialog
-from dvc_x.ui import RemoteServerSettingDialog
+from dvc_x.ui import RemoteServerSettingDialog, GenerateKeygenDialog
 
 
 class MainUI(QtWidgets.QMainWindow):
@@ -18,10 +18,14 @@ class MainUI(QtWidgets.QMainWindow):
         br = QtWidgets.QPushButton(self)
         br.setText("Browse remote")
         br.clicked.connect(lambda: self.browseRemote())
+        gp = QtWidgets.QPushButton(self)
+        gp.setText("Generate Key")
+        gp.clicked.connect(lambda: self.generateKey())
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(pb)
         layout.addWidget(br)
+        layout.addWidget(gp)
         widg = QtWidgets.QWidget()
         widg.setLayout(layout)
         self.setCentralWidget(widg)
@@ -69,6 +73,10 @@ class MainUI(QtWidgets.QMainWindow):
             dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
             
             dialogue.exec()
+
+    def generateKey(self):
+        dialog = GenerateKeygenDialog(self)
+        dialog.exec()
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

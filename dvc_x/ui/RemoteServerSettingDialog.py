@@ -2,6 +2,9 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from dvc_x.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
+import pysnooper
+import dvc_x as drx
+
 
 
 class RemoteServerSettingDialog(QtWidgets.QDialog):
@@ -193,7 +196,14 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             error_msg += "provide private key file"
             error += 1000
 
-        if error > 0:
+        if error >=  1000:
+            # should pop up a message Dialog saying that a key will be generated
+            # and will be asked for a password
+            keygen_dialog = self.generateKeyFileDialog(parent=self)
+            keygen_dialog.accepted.connect(lambda: self.updateSettingsWithNewlyGeneratedKeyFile())
+            keygen_dialog.show()
+
+        elif error > 0:
             # print ("Error", error)
             # print (error_msg)
             msg = QtWidgets.QMessageBox(self)
@@ -211,6 +221,8 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.storeConnectionDetails(self.connection_details)
             
             self.close()
+    def updateSettingsWithNewlyGeneratedKeyFile(self):
+        print ("updateSettingsWithNewlyGeneratedKeyFile")
 
     def rejected(self):
         self.close()
@@ -269,3 +281,86 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         # remove from combo
         self.combo.removeItem(index)
         
+    def generateKeyFileDialog(self, parent=None):
+        pass
+
+class GenerateKeygenDialog(QtWidgets.QDialog):
+    def __init__(self, parent = None):
+        QtWidgets.QDialog.__init__(self, parent)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
+                                     | QtWidgets.QDialogButtonBox.Cancel)
+
+        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(lambda: self.accepted())
+        bb.button(QtWidgets.QDialogButtonBox.Ok).setText("Generate Key and save")
+        bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
+        self.buttonBox = bb
+
+        fw = UIFormFactory.getQWidget(parent=self)
+        self.formWidget = fw
+
+        # create the form view
+
+        # add server name
+        qlabel = QtWidgets.QLabel(fw.groupBox)
+        qlabel.setText("Server password: ")
+        qwidget = QtWidgets.QLineEdit(fw.groupBox)
+        qwidget.setClearButtonEnabled(True)
+        qwidget.setEchoMode(QtWidgets.QLineEdit.PasswordEchoOnEdit)
+        # finally add to the form widget
+        fw.addWidget('server_password', qlabel, qwidget)
+
+        # # add ComboBox for pre selection, also with a label
+        # cwidget, combo = self.createPresetComboBox()
+        # self.combo = combo
+
+        # formWidget.uiElements['verticalLayout'].insertWidget(0,cwidget)
+
+        # add the button box
+        fw.uiElements['verticalLayout'].addWidget(bb)
+        # set the layout
+        self.setLayout(fw.uiElements['verticalLayout'])
+        self.setWindowTitle("Remote server settings")
+        self._key_file = None
+
+    @property
+    def key_file(self):
+        return self._key_file
+    @key_file.setter
+    def key_file(self, value):
+        self._key_file = os.path.abspath(value)
+    
+    @pysnooper.snoop(depth=2)
+    def accepted(self):
+        print ("Accepted")
+        self.setFilenameForPrivateKeyFile()
+        if self.key_file is not None:
+            a=drx.DVCRem(logfile='generatekey.log', port='22', host='vishighmem01.esc.rl.ac.uk', 
+            username='edo', private_key=None)
+            errormsg = None
+            try:
+                a.login_pw(self.formWidget.widgets['server_password_field'].text())
+                a.generate_keys(filename=self.key_file)
+                a.authorize_key(filename=self.key_file)
+            except TimeoutError as te:
+                errormsg = str(te)
+            
+            if errormsg is not None:
+                # send message to user
+                msg = QtWidgets.QMessageBox(self)
+                msg.setIcon(QtWidgets.QMessageBox.Critical)
+                msg.setWindowTitle('Error')
+                msg.setText("Error {}".format(str(errormsg)))
+                msg.exec()
+            else:
+                self.close()
+
+    def rejected(self):
+        self.close()
+
+    def setFilenameForPrivateKeyFile(self):
+        dialogue = QtWidgets.QFileDialog(self)
+        dialogue.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        mask = dialogue.getSaveFileName(self,"Save the generated private key file")[0]
+        if mask is not None:
+            # self.formWidget.widgets['private_key_field'].setText(os.path.abspath(mask))
+            self.key_file = mask

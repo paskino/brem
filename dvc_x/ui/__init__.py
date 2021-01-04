@@ -1,3 +1,3 @@
 from .RemoteFileDialog import RemoteFileDialog
-from .RemoteServerSettingDialog import RemoteServerSettingDialog
+from .RemoteServerSettingDialog import RemoteServerSettingDialog, GenerateKeygenDialog
 from .UIFormWidget import UIFormFactory
