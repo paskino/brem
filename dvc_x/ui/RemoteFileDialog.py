@@ -8,6 +8,7 @@ import glob
 from functools import partial
 import dvc_x as drx
 import stat
+from dvc_x.QtThreading import Worker
 
 dpath = os.path
 
@@ -68,6 +69,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
             remote_os=remote_os)
 
         self.setWindowTitle("Remote File Explorer on {}@{}:{}".format(username, host, port))
+        self.threadpool = QtCore.QThreadPool()
         
     @property
     def Ok(self):
@@ -184,11 +186,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         le.setText(str(parent_dir))
         self.globDirectoryAndFillTable()
 
-    def isDir(self, path):
-        self.conn.login(passphrase=False)
-        rstat = self.conn.stat(path)
-        self.conn.logout()
-        return stat.S_IFMT(rstat.st_mode) == stat.S_IFDIR
+
 
     def createTableWidget(self):
         tableWidget = QtWidgets.QTableWidget()
@@ -223,14 +221,87 @@ class RemoteFileDialog(QtWidgets.QDialog):
         for i, v in enumerate(data):
             for j, w in enumerate(v):
                 self.tableWidget.setItem(i, j, QtWidgets.QTableWidgetItem(str(w)))
-        # tableWidget.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem('Name'))
-        # tableWidget.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem('Type'))
+                
         self.tableWidget.setHorizontalHeaderLabels(['Type', 'Name'])
+        
         self.tableWidget.sortItems(1, order=QtCore.Qt.AscendingOrder)
         self.tableWidget.resizeColumnsToContents()
+        self.updateTypeColumn()
 
+    def updateTypeColumn(self):
+        for i in range(self.tableWidget.rowCount()):
+            w = self.tableWidget.item(i,1).text()
+    
+            path = dpath.join(self.line_edit.text(), w)
+            port = self.conn.port
+            host = self.conn.host
+            username = self.conn.username
+            private_key = self.conn.private_key
+            remote_os = self.conn.remote_os
+            worker = Worker(self.asyncStatRemotePath, path, i, self.tableWidget, 
+                                host, port, username, private_key, remote_os)
+            self.threadpool.start(worker)
+            
     def isFile(self, path):
-        self.conn.login(passphrase=False)
-        rstat = self.conn.stat(path)
-        self.conn.logout()
-        return stat.S_IFMT(rstat.st_mode) == stat.S_IFREG
+        error = None
+        try:
+            self.conn.login(passphrase=False)
+            rstat = self.conn.stat(path)
+            self.conn.logout()
+            return stat.S_IFMT(rstat.st_mode) == stat.S_IFREG
+        except TimeoutError as err:
+            error = err
+        except Exception as err:
+            error = err
+        if error is not None:
+            # send message to user
+            msg = QtWidgets.QMessageBox(self)
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
+            msg.setWindowTitle('Error')
+            msg.setText("Error {}".format(str(error)))
+            msg.exec()
+            return
+    def isDir(self, path):
+        error = None
+        try:
+            self.conn.login(passphrase=False)
+            rstat = self.conn.stat(path)
+            self.conn.logout()
+            return stat.S_IFMT(rstat.st_mode) == stat.S_IFDIR
+        except TimeoutError as err:
+            error = err
+        except Exception as err:
+            error = err
+        if error is not None:
+            # send message to user
+            msg = QtWidgets.QMessageBox(self)
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
+            msg.setWindowTitle('Error')
+            msg.setText("Error {}".format(str(err)))
+            msg.exec()
+            return
+    
+    def asyncStatRemotePath(self, path, row, table, host, port, username, private_key, remote_os,
+                           progress_callback, message_callback):
+        '''asynchronously stat remote files for their type and adds info to the tablewidget'''
+        # TODO logfile should be created and deleted
+        logfile = 'logfile.log'
+        conn = drx.DVCRem(logfile=logfile, 
+                          port=port, host=host, username=username, 
+                          private_key=private_key)
+        error = None
+        try:
+            conn.login(passphrase=False)
+            rstat = conn.stat(path)
+            conn.logout()
+        except TimeoutError as err:
+            error = err
+        except Exception as err:
+            error = err
+        if error is not None:
+            # send message to user
+            table.setItem(row, 0, QtWidgets.QTableWidgetItem(str(error)))
+        else:
+            table.setItem(row, 0, QtWidgets.QTableWidgetItem(str(rstat)))
+
+

@@ -1,10 +1,6 @@
-
 import paramiko as ssh
 import posixpath, ntpath, os
-
 from getpass import getpass
-
-import pysnooper
 
 remotepath = os.path
 
