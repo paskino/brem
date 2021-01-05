@@ -37,8 +37,9 @@ class MainUI(QtWidgets.QMainWindow):
             for el in dialogue.selected:
                 print ("Return from dialogue", el)
     def getConnectionDetails(self, dialog):
-        for k,v in dialog.connection_details.items():
-            print (k,v)
+        if dialog.connection_details is not None:
+            for k,v in dialog.connection_details.items():
+                print (k,v)
         self.connection_details = dialog.connection_details
     def openConfigRemote(self):
         

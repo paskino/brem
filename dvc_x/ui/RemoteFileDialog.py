@@ -132,16 +132,27 @@ class RemoteFileDialog(QtWidgets.QDialog):
         directory = dpath.abspath(self.line_edit.text())
         # print ("trying to list ", directory)
         self.conn.login(passphrase=False)
+        err = None
         try:
             data = self.conn.listdir(path=directory)
         except FileNotFoundError as error:
             # restore OverrideCursor
             QtGui.QGuiApplication.restoreOverrideCursor()
+            err = error
+        except PermissionError as error:
+            # restore OverrideCursor
+            QtGui.QGuiApplication.restoreOverrideCursor()
+            err = error
+        if err is not None:
+            # restore previously selected path
+            le = self.widgets['lineEdit']
+            parent_dir = self.getCurrentParentRemoteDirectory()
+            le.setText(str(parent_dir))
             # send message to user
             msg = QtWidgets.QMessageBox(self)
             msg.setIcon(QtWidgets.QMessageBox.Critical)
             msg.setWindowTitle('Error')
-            msg.setText("Error {}".format(str(error)))
+            msg.setText("Error {}".format(str(err)))
             msg.exec()
             return
         # print (data)
@@ -154,14 +165,21 @@ class RemoteFileDialog(QtWidgets.QDialog):
         # restore OverrideCursor
         QtGui.QGuiApplication.restoreOverrideCursor()
 
-    def goToParentDirectory(self):
+    def getCurrentRemoteDirectory(self):
         le = self.widgets['lineEdit']
         if self.isDir(le.text()):
             current_dir = dpath.abspath(le.text())
         else:
             current_dir = dpath.dirname(le.text())
+        return current_dir
+    def getCurrentParentRemoteDirectory(self):
+        current_dir = self.getCurrentRemoteDirectory()
+        return dpath.abspath(dpath.join(current_dir, '..'))
 
-        parent_dir = dpath.abspath(dpath.join(current_dir, '..'))
+    def goToParentDirectory(self):
+        le = self.widgets['lineEdit']
+        current_dir = self.getCurrentRemoteDirectory()
+        parent_dir  = self.getCurrentParentRemoteDirectory()
         print ("current_dir, parent_dir", current_dir, parent_dir )
         le.setText(str(parent_dir))
         self.globDirectoryAndFillTable()

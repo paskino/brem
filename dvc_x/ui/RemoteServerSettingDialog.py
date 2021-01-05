@@ -48,6 +48,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.setPrivateKeyFile(private_key)
         
         self.settings_filename = settings_filename
+        self._connection_details = None
 
         self.loadConnectionSettingsFromFile()
 
@@ -225,6 +226,13 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.storeConnectionDetails(self.connection_details)
             
             self.close()
+    @property
+    def connection_details(self):
+        return self._connection_details
+    @connection_details.setter
+    def connection_details(self, value):
+        if isinstance(value, dict):
+            self._connection_details = value
     def updateSettingsWithNewlyGeneratedKeyFile(self):
         print ("updateSettingsWithNewlyGeneratedKeyFile")
 
@@ -293,16 +301,29 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         
         keygen_dialog = GenerateKeygenDialog(parent=self, 
                             host=server_name, port=server_port, username=username)
-        keygen_dialog.Ok.clicked.connect(lambda: self.updateSettingsWithNewlyGeneratedKeyFile())
-        keygen_dialog.finished.connect(lambda: self.retrieveNewlyGeneratedKeyFile(keygen_dialog))
+        # keygen_dialog.Ok.clicked.connect(lambda: self.updateSettingsWithNewlyGeneratedKeyFile())
+        keygen_dialog.finished.connect(lambda x: self.retrieveNewlyGeneratedKeyFile(keygen_dialog,x))
         return keygen_dialog
 
-    def retrieveNewlyGeneratedKeyFile(self, keygen_dialog):
+    def retrieveNewlyGeneratedKeyFile(self, keygen_dialog,value):
         '''fills the path to the key file from the GenerateKeyDialog'''
+        print ("retrieveNewlyGeneratedKeyFile", value)
         self.setPrivateKeyFile(keygen_dialog.key_file)
 
 
 class GenerateKeygenDialog(QtWidgets.QDialog):
+    '''A dialog to generate a SSH key pair
+    
+    Will ask for the password. It will require the host, port and username to be passed.
+
+    This dialog is launched by the RemoteServerSettingDialog if the private key field
+    is left blank. In such a case a new key pair will be:
+
+    1) created and saved locally
+    2) uploaded to the remote and saved into the .ssh/authorized_keys file.
+
+    2 will happen in a QThread.
+    '''
     def __init__(self, parent=None, host=None, port=22, username=None):
         QtWidgets.QDialog.__init__(self, parent)
 
@@ -348,6 +369,7 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         self.threadpool = QtCore.QThreadPool()
     @property
     def Ok(self):
+        '''returns a reference to the OK button in the dialog button box'''
         return self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok)
 
     @property
@@ -357,9 +379,8 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
     def key_file(self, value):
         self._key_file = os.path.abspath(value)
     
-    @pysnooper.snoop(depth=2)
     def accepted(self):
-        print ("Accepted")
+        '''authorize the key on the remote server'''
         self.setFilenameForPrivateKeyFile()
         if self.key_file is not None:
             self.keygen_authorise = Worker(self.authorize_key_worker, self.host, 
