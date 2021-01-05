@@ -4,6 +4,8 @@ import os
 import configparser
 import pysnooper
 import dvc_x as drx
+from dvc_x.QtThreading import Worker, WorkerSignals, ErrorObserver
+
 
 
 
@@ -56,6 +58,9 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
 
     @settings_filename.setter
     def settings_filename(self, value):
+        if value is None:
+            self._settings_filename = os.path.join(os.path.expanduser('~'), 'remote_config.ini')
+            return
         dpath = os.path.abspath(value)
         if os.path.isdir(dpath):
             self._settings_filename = os.path.join(dpath, 'remote_config.ini')
@@ -200,7 +205,6 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             # should pop up a message Dialog saying that a key will be generated
             # and will be asked for a password
             keygen_dialog = self.generateKeyFileDialog(parent=self)
-            keygen_dialog.accepted.connect(lambda: self.updateSettingsWithNewlyGeneratedKeyFile())
             keygen_dialog.show()
 
         elif error > 0:
@@ -282,11 +286,31 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         self.combo.removeItem(index)
         
     def generateKeyFileDialog(self, parent=None):
-        pass
+        '''return a Dialog to generate and save an SSH public/private key'''
+        server_name = self.formWidget.widgets['server_name_field'].text()
+        server_port = self.formWidget.widgets['server_port_field'].text()
+        username    = self.formWidget.widgets['username_field'].text()
+        
+        keygen_dialog = GenerateKeygenDialog(parent=self, 
+                            host=server_name, port=server_port, username=username)
+        keygen_dialog.Ok.clicked.connect(lambda: self.updateSettingsWithNewlyGeneratedKeyFile())
+        keygen_dialog.finished.connect(lambda: self.retrieveNewlyGeneratedKeyFile(keygen_dialog))
+        return keygen_dialog
+
+    def retrieveNewlyGeneratedKeyFile(self, keygen_dialog):
+        '''fills the path to the key file from the GenerateKeyDialog'''
+        self.setPrivateKeyFile(keygen_dialog.key_file)
+
 
 class GenerateKeygenDialog(QtWidgets.QDialog):
-    def __init__(self, parent = None):
+    def __init__(self, parent=None, host=None, port=22, username=None):
         QtWidgets.QDialog.__init__(self, parent)
+
+        # save a reference of the host,port and username
+        self.host = host
+        self.port = port
+        self.username = username
+
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
                                      | QtWidgets.QDialogButtonBox.Cancel)
 
@@ -309,18 +333,22 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         # finally add to the form widget
         fw.addWidget('server_password', qlabel, qwidget)
 
-        # # add ComboBox for pre selection, also with a label
-        # cwidget, combo = self.createPresetComboBox()
-        # self.combo = combo
+        # insert a QLabel at the top to describe what's happening
+        self.infolabel = QtWidgets.QLabel()
+        self.setInfo('A new SSH key will be generated for \nuser {} on {}:{}\nPlease provide your password'.format(username, host, port))
+        self.formWidget.uiElements['verticalLayout'].insertWidget(0,self.infolabel)
 
-        # formWidget.uiElements['verticalLayout'].insertWidget(0,cwidget)
-
+        
         # add the button box
         fw.uiElements['verticalLayout'].addWidget(bb)
         # set the layout
         self.setLayout(fw.uiElements['verticalLayout'])
         self.setWindowTitle("Remote server settings")
         self._key_file = None
+        self.threadpool = QtCore.QThreadPool()
+    @property
+    def Ok(self):
+        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok)
 
     @property
     def key_file(self):
@@ -334,27 +362,30 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         print ("Accepted")
         self.setFilenameForPrivateKeyFile()
         if self.key_file is not None:
-            a=drx.DVCRem(logfile='generatekey.log', port='22', host='vishighmem01.esc.rl.ac.uk', 
-            username='edo', private_key=None)
-            errormsg = None
-            try:
-                a.login_pw(self.formWidget.widgets['server_password_field'].text())
-                a.generate_keys(filename=self.key_file)
-                a.authorize_key(filename=self.key_file)
-            except TimeoutError as te:
-                errormsg = str(te)
+            self.keygen_authorise = Worker(self.authorize_key_worker, self.host, 
+                                            self.username, self.port)
+            self.keygen_authorise.signals.message.connect(self.setInfo)
+            self.keygen_authorise.signals.error.connect(self.handleError)
+            self.keygen_authorise.signals.finished.connect(self.authorised)
+            self.threadpool.start(self.keygen_authorise)
             
-            if errormsg is not None:
-                # send message to user
-                msg = QtWidgets.QMessageBox(self)
-                msg.setIcon(QtWidgets.QMessageBox.Critical)
-                msg.setWindowTitle('Error')
-                msg.setText("Error {}".format(str(errormsg)))
-                msg.exec()
-            else:
-                self.close()
+    def handleError(self, error):
+        print (error)
+        errormsg = error[1]
+        if errormsg is not None:
+            # send message to user
+            msg = QtWidgets.QMessageBox(self)
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
+            msg.setWindowTitle('Error')
+            msg.setText("Error {}".format(str(errormsg)))
+            msg.exec()
+            
+    def authorised(self):
+        self.done(1)
+        self.close()
 
     def rejected(self):
+        self.done(-1)
         self.close()
 
     def setFilenameForPrivateKeyFile(self):
@@ -364,3 +395,18 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         if mask is not None:
             # self.formWidget.widgets['private_key_field'].setText(os.path.abspath(mask))
             self.key_file = mask
+    def setInfo(self, text):
+        '''Writes in the top QLabel information for the user'''
+        self.infolabel.setText(text)
+
+    def authorize_key_worker(self, host, username, port, 
+                             progress_callback, message_callback):
+        a=drx.DVCRem(logfile='generatekey.log', port=port, 
+                         host=host, username=username, private_key=None)
+        
+        a.login_pw(self.formWidget.widgets['server_password_field'].text())
+        message_callback.emit("Generating Key...")
+        a.generate_keys(filename=self.key_file)
+        message_callback.emit("Logging onto remote host and authorising key")
+        a.authorize_key(filename=self.key_file)
+    
