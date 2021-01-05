@@ -2,7 +2,6 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from dvc_x.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
-import pysnooper
 import dvc_x as drx
 from dvc_x.QtThreading import Worker, WorkerSignals, ErrorObserver
 
@@ -350,7 +349,7 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         qlabel.setText("Server password: ")
         qwidget = QtWidgets.QLineEdit(fw.groupBox)
         qwidget.setClearButtonEnabled(True)
-        qwidget.setEchoMode(QtWidgets.QLineEdit.PasswordEchoOnEdit)
+        qwidget.setEchoMode(QtWidgets.QLineEdit.Password)
         # finally add to the form widget
         fw.addWidget('server_password', qlabel, qwidget)
 
