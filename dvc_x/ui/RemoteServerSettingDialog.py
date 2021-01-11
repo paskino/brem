@@ -3,7 +3,7 @@ from dvc_x.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
 import dvc_x as drx
-from dvc_x.QtThreading import Worker, WorkerSignals, ErrorObserver
+from eqt.threading.QtThreading import Worker, WorkerSignals, ErrorObserver
 
 
 
