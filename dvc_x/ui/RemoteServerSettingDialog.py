@@ -2,6 +2,10 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from dvc_x.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
+import dvc_x as drx
+from eqt.threading.QtThreading import Worker, WorkerSignals, ErrorObserver
+
+
 
 
 class RemoteServerSettingDialog(QtWidgets.QDialog):
@@ -43,6 +47,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.setPrivateKeyFile(private_key)
         
         self.settings_filename = settings_filename
+        self._connection_details = None
 
         self.loadConnectionSettingsFromFile()
 
@@ -53,6 +58,9 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
 
     @settings_filename.setter
     def settings_filename(self, value):
+        if value is None:
+            self._settings_filename = os.path.join(os.path.expanduser('~'), 'remote_config.ini')
+            return
         dpath = os.path.abspath(value)
         if os.path.isdir(dpath):
             self._settings_filename = os.path.join(dpath, 'remote_config.ini')
@@ -193,7 +201,13 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             error_msg += "provide private key file"
             error += 1000
 
-        if error > 0:
+        if error >=  1000:
+            # should pop up a message Dialog saying that a key will be generated
+            # and will be asked for a password
+            keygen_dialog = self.generateKeyFileDialog(parent=self)
+            keygen_dialog.show()
+
+        elif error > 0:
             # print ("Error", error)
             # print (error_msg)
             msg = QtWidgets.QMessageBox(self)
@@ -211,6 +225,15 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
             self.storeConnectionDetails(self.connection_details)
             
             self.close()
+    @property
+    def connection_details(self):
+        return self._connection_details
+    @connection_details.setter
+    def connection_details(self, value):
+        if isinstance(value, dict):
+            self._connection_details = value
+    def updateSettingsWithNewlyGeneratedKeyFile(self):
+        print ("updateSettingsWithNewlyGeneratedKeyFile")
 
     def rejected(self):
         self.close()
@@ -269,3 +292,141 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         # remove from combo
         self.combo.removeItem(index)
         
+    def generateKeyFileDialog(self, parent=None):
+        '''return a Dialog to generate and save an SSH public/private key'''
+        server_name = self.formWidget.widgets['server_name_field'].text()
+        server_port = self.formWidget.widgets['server_port_field'].text()
+        username    = self.formWidget.widgets['username_field'].text()
+        
+        keygen_dialog = GenerateKeygenDialog(parent=self, 
+                            host=server_name, port=server_port, username=username)
+        # keygen_dialog.Ok.clicked.connect(lambda: self.updateSettingsWithNewlyGeneratedKeyFile())
+        keygen_dialog.finished.connect(lambda x: self.retrieveNewlyGeneratedKeyFile(keygen_dialog,x))
+        return keygen_dialog
+
+    def retrieveNewlyGeneratedKeyFile(self, keygen_dialog,value):
+        '''fills the path to the key file from the GenerateKeyDialog'''
+        print ("retrieveNewlyGeneratedKeyFile", value)
+        self.setPrivateKeyFile(keygen_dialog.key_file)
+
+
+class GenerateKeygenDialog(QtWidgets.QDialog):
+    '''A dialog to generate a SSH key pair
+    
+    Will ask for the password. It will require the host, port and username to be passed.
+
+    This dialog is launched by the RemoteServerSettingDialog if the private key field
+    is left blank. In such a case a new key pair will be:
+
+    1) created and saved locally
+    2) uploaded to the remote and saved into the .ssh/authorized_keys file.
+
+    2 will happen in a QThread.
+    '''
+    def __init__(self, parent=None, host=None, port=22, username=None):
+        QtWidgets.QDialog.__init__(self, parent)
+
+        # save a reference of the host,port and username
+        self.host = host
+        self.port = port
+        self.username = username
+
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
+                                     | QtWidgets.QDialogButtonBox.Cancel)
+
+        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(lambda: self.accepted())
+        bb.button(QtWidgets.QDialogButtonBox.Ok).setText("Generate Key and save")
+        bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
+        self.buttonBox = bb
+
+        fw = UIFormFactory.getQWidget(parent=self)
+        self.formWidget = fw
+
+        # create the form view
+
+        # add server name
+        qlabel = QtWidgets.QLabel(fw.groupBox)
+        qlabel.setText("Server password: ")
+        qwidget = QtWidgets.QLineEdit(fw.groupBox)
+        qwidget.setClearButtonEnabled(True)
+        qwidget.setEchoMode(QtWidgets.QLineEdit.Password)
+        # finally add to the form widget
+        fw.addWidget('server_password', qlabel, qwidget)
+
+        # insert a QLabel at the top to describe what's happening
+        self.infolabel = QtWidgets.QLabel()
+        self.setInfo('A new SSH key will be generated for \nuser {} on {}:{}\nPlease provide your password'.format(username, host, port))
+        self.formWidget.uiElements['verticalLayout'].insertWidget(0,self.infolabel)
+
+        
+        # add the button box
+        fw.uiElements['verticalLayout'].addWidget(bb)
+        # set the layout
+        self.setLayout(fw.uiElements['verticalLayout'])
+        self.setWindowTitle("Remote server settings")
+        self._key_file = None
+        self.threadpool = QtCore.QThreadPool()
+    @property
+    def Ok(self):
+        '''returns a reference to the OK button in the dialog button box'''
+        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok)
+
+    @property
+    def key_file(self):
+        return self._key_file
+    @key_file.setter
+    def key_file(self, value):
+        self._key_file = os.path.abspath(value)
+    
+    def accepted(self):
+        '''authorize the key on the remote server'''
+        self.setFilenameForPrivateKeyFile()
+        if self.key_file is not None:
+            self.keygen_authorise = Worker(self.authorize_key_worker, self.host, 
+                                            self.username, self.port)
+            self.keygen_authorise.signals.message.connect(self.setInfo)
+            self.keygen_authorise.signals.error.connect(self.handleError)
+            self.keygen_authorise.signals.finished.connect(self.authorised)
+            self.threadpool.start(self.keygen_authorise)
+            
+    def handleError(self, error):
+        print (error)
+        errormsg = error[1]
+        if errormsg is not None:
+            # send message to user
+            msg = QtWidgets.QMessageBox(self)
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
+            msg.setWindowTitle('Error')
+            msg.setText("Error {}".format(str(errormsg)))
+            msg.exec()
+            
+    def authorised(self):
+        self.done(1)
+        self.close()
+
+    def rejected(self):
+        self.done(-1)
+        self.close()
+
+    def setFilenameForPrivateKeyFile(self):
+        dialogue = QtWidgets.QFileDialog(self)
+        dialogue.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        mask = dialogue.getSaveFileName(self,"Save the generated private key file")[0]
+        if mask is not None:
+            # self.formWidget.widgets['private_key_field'].setText(os.path.abspath(mask))
+            self.key_file = mask
+    def setInfo(self, text):
+        '''Writes in the top QLabel information for the user'''
+        self.infolabel.setText(text)
+
+    def authorize_key_worker(self, host, username, port, 
+                             progress_callback, message_callback):
+        a=drx.DVCRem(logfile='generatekey.log', port=port, 
+                         host=host, username=username, private_key=None)
+        
+        a.login_pw(self.formWidget.widgets['server_password_field'].text())
+        message_callback.emit("Generating Key...")
+        a.generate_keys(filename=self.key_file)
+        message_callback.emit("Logging onto remote host and authorising key")
+        a.authorize_key(filename=self.key_file)
+    

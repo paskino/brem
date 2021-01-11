@@ -84,6 +84,8 @@ class MainUI(QtWidgets.QMainWindow):
             self.dvcWorker = Worker(self.run_dvc_worker, host, username, port, private_key)
             self.dvcWorker.signals.message.connect(self.updateStatusBar)
             self.threadpool.start(self.dvcWorker)
+        else:
+            print ("No connection details")
 
     def run_dvc_worker(self, host, username,port, private_key, progress_callback, message_callback):
         from time import sleep

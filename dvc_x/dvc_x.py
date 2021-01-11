@@ -1,8 +1,8 @@
-
 import paramiko as ssh
-
+import posixpath, ntpath, os
 from getpass import getpass
 
+remotepath = os.path
 
 class DVCRem:
     """ Main class of a dvcrem"""
@@ -28,6 +28,13 @@ class DVCRem:
             self.host = host
         if username is not None:
             self.username = username
+        
+        global remotepath 
+        remotepath = posixpath
+        if remote_os is not None:     
+            if remote_os == 'Windows':
+                remotepath = ntpath
+            
         ssh.util.log_to_file(self.logfile)
         self.identity = None
         self.channel = None
@@ -51,14 +58,16 @@ class DVCRem:
         self.channel = self.client.invoke_shell()
         self.sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
 
-    def login_pw(self):
-        print('trying to login to {h} on port {p} with username {u} please provide password: '.format(h=self.host,p=self.port,u=self.username))
-        pw = getpass()
+    def login_pw(self, pw=None):
+        if pw is None:
+            print('trying to login to {h} on port {p} with username {u} please provide password: '.format(h=self.host,p=self.port,u=self.username))
+            pw = getpass()
         self.client = ssh.SSHClient()
         self.client.load_system_host_keys()
         self.client.set_missing_host_key_policy(ssh.AutoAddPolicy())
         self.client.connect(self.host, self.port, self.username, password=pw)
         self.channel = self.client.invoke_shell()
+        self.sftp = ssh.SFTPClient.from_transport(self.client.get_transport())
 
     def logout(self):
         self.sftp.close()
@@ -87,9 +96,25 @@ class DVCRem:
     def info(self):
         return " version {}".format(self.__version__)
 
-    def put_file(self,filename):
+    def put_file(self,filename, remote_filename=None):
         # check file exists TBD
-        self.sftp.put(filename, filename)
+        if remote_filename is None:
+            remote_filename = remotepath.abspath(
+                remotepath.join(self.remote_home_dir,os.path.basename(filename)))
+        self.sftp.put(filename, remote_filename)
+
+    @property
+    def remote_home_dir(self):
+        if self.client is not None:
+            stdout, stderr = self.run( "python -c \"import os; print (os.path.expanduser('~'))\"")
+            print ("remote_home_dir", stdout)
+            return stdout.decode('utf-8').rstrip()
+        else:
+            raise ValueError('Please provide login first')
+    @property
+    def local_home_dir(self):
+        
+        return os.path.expanduser("~")
 
     def get_file(self,filename):
         self.sftp.get(filename, filename)
@@ -111,7 +136,12 @@ class DVCRem:
 
     def authorize_key(self,filename):
         ff='randomfiletoauthorize.sh'
-        self.put_file(filename)
+        remotefile = remotepath.join(self.remote_home_dir, 'mykey-rsa.pub')
+        self.put_file(
+            os.path.join(os.path.dirname(filename), os.path.basename(filename)+".pub"),
+            remotefile
+            )
+
         with open(ff,'w', newline='\n') as f:
             print('''
                     if [[ $(grep -c "$(cat mykey-rsa.pub)" ~/.ssh/authorized_keys) == 0 ]]; then
@@ -119,11 +149,11 @@ class DVCRem:
                     else
                        echo "key already present"
                     fi
-                    '''.format(f=filename),file=f)
+                    '''.format(f=remotefile),file=f)
         self.put_file(ff)
         self.run("/bin/sh ./{}".format(ff))
         self.remove_file(ff)
-        self.remove_file(filename)
+        self.remove_file(remotefile)
 
     def submit_job(self,jdir,job,nodes=1,tps=32,name="mytest",cons="amd",time="00:20:00"):
 

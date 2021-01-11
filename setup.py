@@ -19,7 +19,7 @@ install_requires = [
     'coverage',
     'tox',
     'sphinx',
-    'pyside2'
+    'eqt'
 ]
 
 name = "dvc_x"
