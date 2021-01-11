@@ -8,7 +8,7 @@ import glob
 from functools import partial
 import dvc_x as drx
 import stat
-from dvc_x.QtThreading import Worker
+from eqt.threading.QtThreading import Worker
 
 dpath = os.path
 
@@ -70,6 +70,16 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
         self.setWindowTitle("Remote File Explorer on {}@{}:{}".format(username, host, port))
         self.threadpool = QtCore.QThreadPool()
+        # fill remote home directory
+        try:
+            self.conn.login(passphrase=False)
+            rhome_dir = self.conn.remote_home_dir
+        except Exception as err:
+            pass
+        finally:
+            self.conn.logout()
+        line_edit.setText(rhome_dir)
+
         
     @property
     def Ok(self):
@@ -84,6 +94,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         if remote_os == 'Windows':
             dpath = ntpath
         print (remote_os, dpath)
+        # write remote home directory in addressbar
         return a
 
     def setup_menubar(self):
@@ -133,9 +144,10 @@ class RemoteFileDialog(QtWidgets.QDialog):
         QtGui.QGuiApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         directory = dpath.abspath(self.line_edit.text())
         # print ("trying to list ", directory)
-        self.conn.login(passphrase=False)
+        
         err = None
         try:
+            self.conn.login(passphrase=False)
             data = self.conn.listdir(path=directory)
         except FileNotFoundError as error:
             # restore OverrideCursor
@@ -145,6 +157,8 @@ class RemoteFileDialog(QtWidgets.QDialog):
             # restore OverrideCursor
             QtGui.QGuiApplication.restoreOverrideCursor()
             err = error
+        finally:
+            self.conn.logout()
         if err is not None:
             # restore previously selected path
             le = self.widgets['lineEdit']
@@ -162,7 +176,6 @@ class RemoteFileDialog(QtWidgets.QDialog):
         for el in data[1]:
             ddata.append((data[0], el))
         # print (ddata)
-        self.conn.logout()
         self.loadIntoTableWidget(ddata)
         # restore OverrideCursor
         QtGui.QGuiApplication.restoreOverrideCursor()
@@ -186,8 +199,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         le.setText(str(parent_dir))
         self.globDirectoryAndFillTable()
 
-
-
+    
     def createTableWidget(self):
         tableWidget = QtWidgets.QTableWidget()
         tableWidget.itemClicked.connect(self.fillLineEditWithClickedTableItem)
@@ -201,6 +213,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         pass
 
     def fillLineEditWithDoubleClickedTableItem(self, item):
+        self.threadpool.clear()
         row = item.row()
         fsitem = self.tableWidget.item(row, 1)
         # test if the join dir is still a directory or is a file
@@ -277,7 +290,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
             msg = QtWidgets.QMessageBox(self)
             msg.setIcon(QtWidgets.QMessageBox.Critical)
             msg.setWindowTitle('Error')
-            msg.setText("Error {}".format(str(err)))
+            msg.setText("Error {}".format(str(error)))
             msg.exec()
             return
     
