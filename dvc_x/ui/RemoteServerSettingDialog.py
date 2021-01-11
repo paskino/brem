@@ -1,5 +1,5 @@
 from PySide2 import QtCore, QtGui, QtWidgets
-from dvc_x.ui.UIFormWidget import UIFormFactory
+from eqt.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
 import dvc_x as drx

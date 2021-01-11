@@ -6,7 +6,7 @@ from functools import partial
 from dvc_x.ui import RemoteFileDialog
 from dvc_x.ui import RemoteServerSettingDialog
 import dvc_x as drx
-from dvc_x.QtThreading import Worker, WorkerSignals, ErrorObserver
+from eqt.threading.QtThreading import Worker, WorkerSignals, ErrorObserver
 
 
 class MainUI(QtWidgets.QMainWindow):
