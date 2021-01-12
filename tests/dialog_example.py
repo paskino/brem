@@ -21,11 +21,15 @@ class MainUI(QtWidgets.QMainWindow):
         gp = QtWidgets.QPushButton(self)
         gp.setText("Generate Key")
         gp.clicked.connect(lambda: self.generateKey())
+        sr = QtWidgets.QPushButton(self)
+        sr.setText("Save on Remote")
+        sr.clicked.connect(lambda: self.selectSave())
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(pb)
         layout.addWidget(br)
         layout.addWidget(gp)
+        layout.addWidget(sr)
         widg = QtWidgets.QWidget()
         widg.setLayout(layout)
         self.setCentralWidget(widg)
@@ -36,6 +40,11 @@ class MainUI(QtWidgets.QMainWindow):
         if hasattr(dialogue, 'selected'):
             for el in dialogue.selected:
                 print ("Return from dialogue", el)
+
+    def getSaveSelected(self, dialogue):
+        if hasattr(dialogue, 'selected'):
+            print ("Return from dialogue", dialogue.selected)
+
     def getConnectionDetails(self, dialog):
         if dialog.connection_details is not None:
             for k,v in dialog.connection_details.items():
@@ -74,6 +83,33 @@ class MainUI(QtWidgets.QMainWindow):
             dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
             
             dialogue.exec()
+
+    def selectSave(self):
+        # private_key = os.path.abspath("C:\Apps\cygwin64\home\ofn77899\.ssh\id_rsa")
+        # port=22
+        # host='ui3.scarf.rl.ac.uk'
+        # username='scarf595'
+        if hasattr(self, 'connection_details'):
+            username = self.connection_details['username']
+            port = self.connection_details['server_port']
+            host = self.connection_details['server_name']
+            private_key = self.connection_details['private_key']
+            remote_os = self.connection_details['remote_os']
+
+            logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
+            logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
+            dialogue = RemoteFileDialog(self,
+                                        logfile=logfile, 
+                                        port=port, 
+                                        host=host, 
+                                        username=username,
+                                        private_key=private_key,
+                                        remote_os=remote_os, 
+                                        is_save=True)
+            dialogue.Save.clicked.connect(lambda: self.getSaveSelected(dialogue))
+            
+            dialogue.exec()
+
 
     def generateKey(self):
         dialog = GenerateKeygenDialog(self)
