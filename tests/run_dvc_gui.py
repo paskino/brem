@@ -92,7 +92,8 @@ class MainUI(QtWidgets.QMainWindow):
             logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
             logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
             dialogue = DVCRunDialog(    parent=self,
-                                        title="Run Remote Monitor"
+                                        title="Run Remote Monitor", 
+                                        connection_details=self.connection_details
                                         )
             dialogue.Ok.clicked.connect(dialogue.close)
             
@@ -122,10 +123,6 @@ class MainUI(QtWidgets.QMainWindow):
 
         a.login(passphrase=False)
 
-        #a.generate_keys()
-        #a.authorize_key('mykey-rsa.pub')
-        #a.changedir('.')
-        #print(a.listdir())
         inp="input.dvc"
         # folder="/work3/cse/dvc/test-edo"
         folder = dpath.dirname(logfile)
@@ -238,15 +235,22 @@ module load AMDmodules foss/2019b
         self.statusBar().showMessage(status)
 
 class DVCRunDialog(QtWidgets.QDialog):
-    def __init__(self, parent, title):
+    def __init__(self, parent, title, connection_details):
         QtWidgets.QDialog.__init__(self, parent)
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
-                                     | QtWidgets.QDialogButtonBox.Cancel
                                      | QtWidgets.QDialogButtonBox.Apply
                                      | QtWidgets.QDialogButtonBox.Abort)
 
-        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(lambda: self.accepted())
-        bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
+        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(
+            lambda : self.accept()
+        )
+        bb.button(QtWidgets.QDialogButtonBox.Abort).clicked.connect(
+            lambda: self.cancel_job()
+        )
+        bb.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
+            lambda: self.run_job()
+        )
+        
         self.buttonBox = bb
 
         # add widgets
@@ -276,7 +280,14 @@ class DVCRunDialog(QtWidgets.QDialog):
         qwidget.setEnabled(True)
         # finally add to the form widget
         fw.addWidget(qwidget, qlabel, 'input2')
-
+        
+        # add the cat log 
+        cat = QtWidgets.QTextEdit()
+        cat.setReadOnly(True)
+        cat.setMinimumHeight(100)
+        cat.setMinimumWidth(80)
+        fw.uiElements['verticalLayout'].addWidget(bb)
+        # finally 
         # add the button box to the vertical layout, but outside the
         # form layout
         fw.uiElements['verticalLayout'].addWidget(bb)
@@ -289,6 +300,9 @@ class DVCRunDialog(QtWidgets.QDialog):
 
         # store a reference
         self.fw = fw
+        self.threadpool = QtCore.QThreadPool()
+
+        self.connection_details = connection_details
         
 
         
@@ -298,16 +312,37 @@ class DVCRunDialog(QtWidgets.QDialog):
         return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)
     
     @property
-    def Cancel(self):
-        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Cancel)
-
-    @property
     def Apply(self):
         return self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply)
 
     @property
     def Abort(self):
         return self.buttonBox.button(QtWidgets.QDialogButtonBox.Abort)
+
+    
+    
+    def run_job(self):
+        if hasattr(self, 'connection_details'):
+            username = self.connection_details['username']
+            port = self.connection_details['server_port']
+            host = self.connection_details['server_name']
+            private_key = self.connection_details['private_key']
+            folder=dpath.abspath("/work3/cse/dvc/test-edo")
+            logfile = dpath.join(folder, "remotedvc.out")
+            print ("logfile", logfile)
+            self.dvcWorker = Worker(self.run_dvc_worker, host, username, port, 
+                private_key, logfile)
+            self.dvcWorker.signals.message.connect(self.updateStatusBar)
+
+            # self.threadpool.start(self.dvcWorker)
+        else:
+            print ("No connection details")
+
+    def cancel_job(self):
+        print ("Should cancel running job")
+    def updateStatusBar(self):
+        pass
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     
