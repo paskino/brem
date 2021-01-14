@@ -114,10 +114,202 @@ class MainUI(QtWidgets.QMainWindow):
         else:
             print ("No connection details")
 
-    def run_dvc_worker(self, host, username,port, private_key, logfile, progress_callback, message_callback):
-        from time import sleep
-        #a=drx.DVCRem(private_key="/home/drFaustroll/.ssh/id_routers")
+    
 
+    def updateStatusBar(self, status):
+        self.statusBar().showMessage(status)
+
+class DVCRunDialog(QtWidgets.QDialog):
+    def __init__(self, parent, title, connection_details):
+        QtWidgets.QDialog.__init__(self, parent)
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
+                                     | QtWidgets.QDialogButtonBox.Apply
+                                     | QtWidgets.QDialogButtonBox.Abort)
+
+        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(
+            lambda : self.accept()
+        )
+        bb.button(QtWidgets.QDialogButtonBox.Abort).clicked.connect(
+            lambda: self.cancel_job()
+        )
+        bb.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
+            lambda: self.run_job()
+        )
+        
+        self.buttonBox = bb
+
+        # add widgets
+        # select logfile
+        # input files
+        # requires 3 different 
+        # self.addWidget()
+
+        # create a form layout widget
+        fw = UIFormFactory.getQWidget(parent=self)
+        
+        ### Example on how to add elements to the 
+        # add input 1 as QLineEdit
+        qlabel = QtWidgets.QLabel(fw.groupBox)
+        qlabel.setText("Reference Image: ")
+        qwidget = QtWidgets.QLineEdit(fw.groupBox)
+        qwidget.setClearButtonEnabled(True)
+        # finally add to the form widget
+        fw.addWidget(qwidget, qlabel, 'reference_file')
+        
+        # add input 1 as QLineEdit
+        qlabel = QtWidgets.QLabel(fw.groupBox)
+        qlabel.setText("Correlate Image: ")
+        qwidget = QtWidgets.QLineEdit(fw.groupBox)
+        qwidget.setClearButtonEnabled(True)
+        # finally add to the form widget
+        fw.addWidget(qwidget, qlabel, 'correlate_file')
+
+        # add input 2 as QComboBox
+        qlabel = "Input 2: "
+        qwidget = QtWidgets.QComboBox(fw.groupBox)
+        qwidget.addItem("option 1")
+        qwidget.addItem("option 2")
+        qwidget.setCurrentIndex(0)
+        qwidget.setEnabled(True)
+        # finally add to the form widget
+        fw.addWidget(qwidget, qlabel, 'input2')
+        
+        # add the cat log 
+        cat = QtWidgets.QTextEdit()
+        cat.setReadOnly(True)
+        cat.setMinimumHeight(100)
+        cat.setMinimumWidth(80)
+        fw.uiElements['verticalLayout'].addWidget(cat)
+        # finally 
+        # add the button box to the vertical layout, but outside the
+        # form layout
+        fw.uiElements['verticalLayout'].addWidget(bb)
+        self.setLayout(fw.uiElements['verticalLayout'])
+
+
+        # save references 
+        self.widgets = {'layout': fw.uiElements['verticalLayout'], 
+                        'buttonBox': bb, 'textEdit': cat}
+
+        # store a reference
+        self.fw = fw
+        self.threadpool = QtCore.QThreadPool()
+
+        self.connection_details = connection_details
+
+        # create a RemoteRunControl
+        self.runner = RemoteRunControl()
+        self.runner.connection_details = connection_details
+        folder=dpath.abspath("/work3/cse/dvc/test-edo")
+        logfile = dpath.join(folder, "remotedvc.out")
+        self.runner.dvclog_fname = logfile
+
+    @property
+    def Ok(self):
+        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)
+    
+    @property
+    def Apply(self):
+        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply)
+
+    @property
+    def Abort(self):
+        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Abort)
+
+    
+    
+    def run_job(self):
+        if hasattr(self, 'connection_details'):
+            username = self.connection_details['username']
+            port = self.connection_details['server_port']
+            host = self.connection_details['server_name']
+            private_key = self.connection_details['private_key']
+            folder=dpath.abspath("/work3/cse/dvc/test-edo")
+            logfile = dpath.join(folder, "remotedvc.out")
+            print ("logfile", logfile)
+            self.dvcWorker = Worker(self.runner.run_dvc_worker, host, username, port, 
+                private_key, logfile)
+            self.dvcWorker.signals.message.connect(self.appendText)
+            self.dvcWorker.signals.finished.connect(lambda: self.Apply.setEnabled(True) )
+        
+
+            self.threadpool.start(self.dvcWorker)
+            self.Apply.setEnabled(False)
+        else:
+            print ("No connection details")
+
+    def cancel_job(self):
+        print ("Should cancel running job")
+    
+    def appendText(self, txt):
+        self.widgets['textEdit'].append(txt)
+        
+    
+    
+
+    
+import functools
+class RemoteRunControl(object):
+    def __init__(self, connection_details=None, 
+                 reference_filename=None, correlate_filename=None,
+                 dvclog_filename=None,
+                 dev_config=None):
+        self._connection_details = None
+        self._reference_fname = None
+        self._correlate_fname = None
+        self._dvclog_fname = None
+        self.conn = None
+
+    @property
+    def connection_details(self):
+        return self._connection_details
+    @property
+    def reference_fname(self):
+        return self._reference_fname
+    @property
+    def correlate_fname(self):
+        return self._correlate_fname
+    @property
+    def dvclog_fname(self):
+        return self._dvclog_fname
+    @connection_details.setter
+    def connection_details(self, value):
+        if value is not None:
+            self._connection_details = dict(value)
+        else:
+            self._connection_details = None
+    @reference_fname.setter
+    def reference_fname(self, value):
+        '''setter for reference file name.'''
+        self._reference_fname = value
+        if self.check_configuration():
+            self.set_up()
+    @correlate_fname.setter
+    def correlate_fname(self, value):
+        '''setter for correlate file name.'''
+        self._correlate_fname = value
+        if self.check_configuration():
+            self.set_up()
+    @dvclog_fname.setter
+    def dvclog_fname(self, value):
+        '''setter for dvclog file name.'''
+        self._dvclog_fname = value
+        if self.check_configuration():
+            self.set_up()
+    def check_configuration(self):
+        def f (a,x,y):
+            return x in a and y
+        ff = functools.partial(f, ['username','server_port',
+                                   'server_name','private_key'])
+        if not functools.reduce(ff, self.connection_details.keys(), True):
+            return False
+        
+        # check if filename are defined
+    
+    def run_dvc_worker(self, host, username,port, private_key, logfile, progress_callback, message_callback):
+        
+        from time import sleep
+        
         a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
 
         a.login(passphrase=False)
@@ -202,7 +394,9 @@ module load AMDmodules foss/2019b
         print(jobid)
         status = a.job_status(jobid)
         print(status)
+        i = 0
         while status in [b'PENDING',b'RUNNING']:
+            i+=1
             if status == b'PENDING':
                 print("job is queueing")
                 # self.statusBar().showMessage("Job queueing")
@@ -211,7 +405,8 @@ module load AMDmodules foss/2019b
                 print("job is running")
                 message_callback.emit("Job {} running".format(jobid))
                 # should tail the file in folder+'/dvc.out'
-                stdout, stderr = a.run('cat {}'.format(logfile))
+                stdout, stderr = a.run('tail -n 20 {}'.format(logfile))
+                message_callback.emit("{}".format(stdout.decode('utf-8')))
                 print ("logfile", logfile)
                 print ("stdout", stdout)
                 print ("stdout", stderr)
@@ -229,181 +424,7 @@ module load AMDmodules foss/2019b
 
         a.logout()
         message_callback.emit("Done")
-
-    def updateStatusBar(self, status):
-        self.statusBar().showMessage(status)
-
-class DVCRunDialog(QtWidgets.QDialog):
-    def __init__(self, parent, title, connection_details):
-        QtWidgets.QDialog.__init__(self, parent)
-        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
-                                     | QtWidgets.QDialogButtonBox.Apply
-                                     | QtWidgets.QDialogButtonBox.Abort)
-
-        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(
-            lambda : self.accept()
-        )
-        bb.button(QtWidgets.QDialogButtonBox.Abort).clicked.connect(
-            lambda: self.cancel_job()
-        )
-        bb.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
-            lambda: self.run_job()
-        )
         
-        self.buttonBox = bb
-
-        # add widgets
-        # select logfile
-        # input files
-        # requires 3 different 
-        # self.addWidget()
-
-        # create a form layout widget
-        fw = UIFormFactory.getQWidget(parent=self)
-        
-        ### Example on how to add elements to the 
-        # add input 1 as QLineEdit
-        qlabel = QtWidgets.QLabel(fw.groupBox)
-        qlabel.setText("Input 1: ")
-        qwidget = QtWidgets.QLineEdit(fw.groupBox)
-        qwidget.setClearButtonEnabled(True)
-        # finally add to the form widget
-        fw.addWidget(qwidget, qlabel, 'input1')
-
-        # add input 2 as QComboBox
-        qlabel = "Input 2: "
-        qwidget = QtWidgets.QComboBox(fw.groupBox)
-        qwidget.addItem("option 1")
-        qwidget.addItem("option 2")
-        qwidget.setCurrentIndex(0)
-        qwidget.setEnabled(True)
-        # finally add to the form widget
-        fw.addWidget(qwidget, qlabel, 'input2')
-        
-        # add the cat log 
-        cat = QtWidgets.QTextEdit()
-        cat.setReadOnly(True)
-        cat.setMinimumHeight(100)
-        cat.setMinimumWidth(80)
-        fw.uiElements['verticalLayout'].addWidget(bb)
-        # finally 
-        # add the button box to the vertical layout, but outside the
-        # form layout
-        fw.uiElements['verticalLayout'].addWidget(bb)
-        self.setLayout(fw.uiElements['verticalLayout'])
-
-
-        # save references 
-        self.widgets = {'layout': fw.uiElements['verticalLayout'], 
-                        'buttonBox': bb}
-
-        # store a reference
-        self.fw = fw
-        self.threadpool = QtCore.QThreadPool()
-
-        self.connection_details = connection_details
-        
-
-        
-
-    @property
-    def Ok(self):
-        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)
-    
-    @property
-    def Apply(self):
-        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply)
-
-    @property
-    def Abort(self):
-        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Abort)
-
-    
-    
-    def run_job(self):
-        if hasattr(self, 'connection_details'):
-            username = self.connection_details['username']
-            port = self.connection_details['server_port']
-            host = self.connection_details['server_name']
-            private_key = self.connection_details['private_key']
-            folder=dpath.abspath("/work3/cse/dvc/test-edo")
-            logfile = dpath.join(folder, "remotedvc.out")
-            print ("logfile", logfile)
-            self.dvcWorker = Worker(self.run_dvc_worker, host, username, port, 
-                private_key, logfile)
-            self.dvcWorker.signals.message.connect(self.updateStatusBar)
-
-            # self.threadpool.start(self.dvcWorker)
-        else:
-            print ("No connection details")
-
-    def cancel_job(self):
-        print ("Should cancel running job")
-    def updateStatusBar(self):
-        pass
-
-
-import functools
-class RemoteRunControl(object):
-    def __init__(self, connection_details=None, 
-                 reference_filename=None, correlate_filename=None,
-                 dvclog_filename=None,
-                 dev_config=None):
-        self._connection_details = None
-        self._reference_fname = None
-        self._correlate_fname = None
-        self._dvclog_fname = None
-        self.conn = None
-
-    @property
-    def connection_details(self):
-        return self._connection_details
-    @property
-    def reference_fname(self):
-        return self._reference_fname
-    @property
-    def correlate_fname(self):
-        return self._correlate_fname
-    @property
-    def dvclog_fname(self):
-        return self._dvclog_fname
-    @connection_details.setter
-    def connection_details(self, value):
-        self._connection_details = list(value)
-        if self.check_configuration():
-            self.set_up()
-    @reference_fname.setter
-    def reference_fname(self, value):
-        '''setter for reference file name.'''
-        self._reference_fname = value
-        if self.check_configuration():
-            self.set_up()
-    @correlate_fname.setter
-    def correlate_fname(self, value):
-        '''setter for correlate file name.'''
-        self._correlate_fname = value
-        if self.check_configuration():
-            self.set_up()
-    @dvclog_fname.setter
-    def dvclog_fname(self, value):
-        '''setter for dvclog file name.'''
-        self._dvclog_fname = value
-        if self.check_configuration():
-            self.set_up()
-    def check_configuration(self):
-        def f (a,x,y):
-            return x in a.keys() and y
-        ff = functools.partial(f, ['username','server_port',
-                                   'server_name','private_key'])
-        if not functools.reduce(ff, self.connection_details, True):
-            return False
-        
-        # check if filename are defined
-
-    def set_up(self):
-        pass
-
-    
 
 
 if __name__ == "__main__":
