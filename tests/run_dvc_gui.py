@@ -185,8 +185,8 @@ subvol_aspect           1.0 1.0 1.0             ### subvolume aspect ratio
 
 """.format(datafolder,folder),file=f)
 
-        a.changedir(folder)
-        a.put_file(inp)
+        # a.changedir(folder)
+        a.put_file(inp, remote_filename=dpath.join(folder, inp))
 
 
         job="""
@@ -342,6 +342,70 @@ class DVCRunDialog(QtWidgets.QDialog):
         print ("Should cancel running job")
     def updateStatusBar(self):
         pass
+
+
+import functools
+class RemoteRunControl(object):
+    def __init__(self, connection_details=None, 
+                 reference_filename=None, correlate_filename=None,
+                 dvclog_filename=None,
+                 dev_config=None):
+        self._connection_details = None
+        self._reference_fname = None
+        self._correlate_fname = None
+        self._dvclog_fname = None
+        self.conn = None
+
+    @property
+    def connection_details(self):
+        return self._connection_details
+    @property
+    def reference_fname(self):
+        return self._reference_fname
+    @property
+    def correlate_fname(self):
+        return self._correlate_fname
+    @property
+    def dvclog_fname(self):
+        return self._dvclog_fname
+    @connection_details.setter
+    def connection_details(self, value):
+        self._connection_details = list(value)
+        if self.check_configuration():
+            self.set_up()
+    @reference_fname.setter
+    def reference_fname(self, value):
+        '''setter for reference file name.'''
+        self._reference_fname = value
+        if self.check_configuration():
+            self.set_up()
+    @correlate_fname.setter
+    def correlate_fname(self, value):
+        '''setter for correlate file name.'''
+        self._correlate_fname = value
+        if self.check_configuration():
+            self.set_up()
+    @dvclog_fname.setter
+    def dvclog_fname(self, value):
+        '''setter for dvclog file name.'''
+        self._dvclog_fname = value
+        if self.check_configuration():
+            self.set_up()
+    def check_configuration(self):
+        def f (a,x,y):
+            return x in a.keys() and y
+        ff = functools.partial(f, ['username','server_port',
+                                   'server_name','private_key'])
+        if not functools.reduce(ff, self.connection_details, True):
+            return False
+        
+        # check if filename are defined
+
+    def set_up(self):
+        pass
+
+    
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

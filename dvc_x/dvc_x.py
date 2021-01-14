@@ -169,7 +169,7 @@ class DVCRem:
 
 {job}
             '''.format(nodes=nodes, tps=tps,cons=cons,name=name,time=time,job=job),file=f)
-        self.put_file(ff)
+        self.put_file(ff, remote_filename=remotepath.join(jdir, ff))
         stdout, stderr = self.run("cd {} && sbatch ./{}".format(jdir,ff))
         a=stdout.strip().split()
         if a[0] != "Submitted":
