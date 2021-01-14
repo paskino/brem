@@ -11,7 +11,7 @@ class MainUI(QtWidgets.QMainWindow):
 
     def __init__(self, parent = None):
         QtWidgets.QMainWindow.__init__(self, parent)
-        
+
         pb = QtWidgets.QPushButton(self)
         pb.setText("Configure Connection")
         pb.clicked.connect(lambda: self.openConfigRemote())
@@ -42,9 +42,9 @@ class MainUI(QtWidgets.QMainWindow):
                 print (k,v)
         self.connection_details = dialog.connection_details
     def openConfigRemote(self):
-        
-        dialog = RemoteServerSettingDialog(self,port=None, 
-                                    host=None, 
+
+        dialog = RemoteServerSettingDialog(self,port=None,
+                                    host=None,
                                     username=None,
                                     private_key=None,
                                     settings_filename='remote_config.ini')
@@ -63,16 +63,15 @@ class MainUI(QtWidgets.QMainWindow):
             remote_os = self.connection_details['remote_os']
 
             logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
-            logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
             dialogue = RemoteFileDialog(self,
-                                        logfile=logfile, 
-                                        port=port, 
-                                        host=host, 
+                                        logfile=logfile,
+                                        port=port,
+                                        host=host,
                                         username=username,
                                         private_key=private_key,
                                         remote_os=remote_os)
             dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
-            
+
             dialogue.exec()
 
     def generateKey(self):
@@ -81,7 +80,7 @@ class MainUI(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    
+
     window = MainUI()
-    
+
     sys.exit(app.exec_())
