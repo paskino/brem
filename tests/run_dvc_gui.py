@@ -16,7 +16,7 @@ class MainUI(QtWidgets.QMainWindow):
 
     def __init__(self, parent = None):
         QtWidgets.QMainWindow.__init__(self, parent)
-        
+
         pb = QtWidgets.QPushButton(self)
         pb.setText("Configure Connection")
         pb.clicked.connect(lambda: self.openConfigRemote())
@@ -53,9 +53,9 @@ class MainUI(QtWidgets.QMainWindow):
             print (k,v)
         self.connection_details = dialog.connection_details
     def openConfigRemote(self):
-        
-        dialog = RemoteServerSettingDialog(self,port=None, 
-                                    host=None, 
+
+        dialog = RemoteServerSettingDialog(self,port=None,
+                                    host=None,
                                     username=None,
                                     private_key=None)
         dialog.Ok.clicked.connect(lambda: self.getConnectionDetails(dialog))
@@ -72,15 +72,14 @@ class MainUI(QtWidgets.QMainWindow):
             private_key = self.connection_details['private_key']
 
             logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
-            logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
             dialogue = RemoteFileDialog(self,
-                                        logfile=logfile, 
-                                        port=port, 
-                                        host=host, 
+                                        logfile=logfile,
+                                        port=port,
+                                        host=host,
                                         username=username,
                                         private_key=private_key)
             dialogue.Ok.clicked.connect(lambda: self.getSelected(dialogue))
-            
+
             dialogue.exec()
     def openRunRemoteDialog(self):
         if hasattr(self, 'connection_details'):
@@ -185,7 +184,6 @@ subvol_aspect           1.0 1.0 1.0             ### subvolume aspect ratio
 
 """.format(datafolder,folder),file=f)
 
-        # a.changedir(folder)
         a.put_file(inp, remote_filename=dpath.join(folder, inp))
 
 
@@ -225,6 +223,7 @@ module load AMDmodules foss/2019b
         message_callback.emit("retrieve output for job {}".format(jobid))
         a.changedir(folder)
         a.get_file("slurm-{}.out".format(jobid))
+        a.get_file("dvc.out".format(jobid))
         # here we should fetch also all the output files defined at
         # output_filename\t{1}/small_grid\t### base name for output files
 
@@ -409,7 +408,7 @@ class RemoteRunControl(object):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    
+
     window = MainUI()
-    
+
     sys.exit(app.exec_())
