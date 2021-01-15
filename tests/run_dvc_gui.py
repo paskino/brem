@@ -139,69 +139,44 @@ class DVCRunDialog(QtWidgets.QDialog):
         )
         bb.button(QtWidgets.QDialogButtonBox.Apply).setText("Submit Job")
         
-        self.buttonBox = bb
-
         
         # select logfile
         # input files
         # requires 3 different 
         # self.addWidget()
 
-        # create a form layout widget
-        fw = UIFormFactory.getQWidget(parent=self)
-
         # add widgets
         jobidl = QtWidgets.QLabel(parent=self)
         jobidl.setText("Job id: ")
-        fw.uiElements['verticalLayout'].addWidget(jobidl)
-        
-        ### Example on how to add elements to the 
-        # add input 1 as QLineEdit
-        qlabel = QtWidgets.QLabel(fw.groupBox)
-        qlabel.setText("Reference Image: ")
-        qwidget = QtWidgets.QLineEdit(fw.groupBox)
-        qwidget.setClearButtonEnabled(True)
-        # finally add to the form widget
-        fw.addWidget(qwidget, qlabel, 'reference_file')
-        
-        # add input 1 as QLineEdit
-        qlabel = QtWidgets.QLabel(fw.groupBox)
-        qlabel.setText("Correlate Image: ")
-        qwidget = QtWidgets.QLineEdit(fw.groupBox)
-        qwidget.setClearButtonEnabled(True)
-        # finally add to the form widget
-        fw.addWidget(qwidget, qlabel, 'correlate_file')
 
-        # add input 2 as QComboBox
-        qlabel = "Input 2: "
-        qwidget = QtWidgets.QComboBox(fw.groupBox)
-        qwidget.addItem("option 1")
-        qwidget.addItem("option 2")
-        qwidget.setCurrentIndex(0)
-        qwidget.setEnabled(True)
-        # finally add to the form widget
-        fw.addWidget(qwidget, qlabel, 'input2')
+        # progress bar
+        prog_bar = QtWidgets.QProgressBar(parent=self)
+        prog_bar.setMinimum(0)
+        prog_bar.setMaximum(100)
         
         # add the cat log 
-        cat = QtWidgets.QTextEdit()
+        cat = QtWidgets.QTextEdit(self)
         cat.setReadOnly(True)
         cat.setMinimumHeight(100)
         cat.setMinimumWidth(560)
 
-        fw.uiElements['verticalLayout'].addWidget(cat)
+        vert_layout = QtWidgets.QVBoxLayout(self)
+        vert_layout.addWidget(jobidl)
+        vert_layout.addWidget(prog_bar)
+        vert_layout.addWidget(cat)
         # finally 
         # add the button box to the vertical layout, but outside the
         # form layout
-        fw.uiElements['verticalLayout'].addWidget(bb)
-        self.setLayout(fw.uiElements['verticalLayout'])
+        vert_layout.addWidget(bb)
+        self.setLayout(vert_layout)
 
 
         # save references 
-        self.widgets = {'layout': fw.uiElements['verticalLayout'], 
-                        'buttonBox': bb, 'textEdit': cat, 'jobid': jobidl}
+        self.widgets = {'layout': vert_layout, 
+                        'buttonBox': bb, 'textEdit': cat, 'jobid': jobidl, 
+                        'progressBar': prog_bar}
 
         # store a reference
-        self.fw = fw
         self.threadpool = QtCore.QThreadPool()
 
         self.connection_details = connection_details
@@ -219,11 +194,11 @@ class DVCRunDialog(QtWidgets.QDialog):
     
     @property
     def Apply(self):
-        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Apply)
+        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Apply)
 
     @property
     def Abort(self):
-        return self.buttonBox.button(QtWidgets.QDialogButtonBox.Abort)
+        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Abort)
 
     
     
@@ -237,7 +212,7 @@ class DVCRunDialog(QtWidgets.QDialog):
             logfile = dpath.join(folder, "remotedvc.out")
             print ("logfile", logfile)
             self.dvcWorker = Worker(self.runner.run_dvc_worker, host, username, port, 
-                private_key, logfile, self.widgets)
+                private_key, logfile, self.widgets, 10)
             self.dvcWorker.signals.message.connect(self.appendText)
             
             self.dvcWorker.signals.finished.connect(lambda: self.reset_interface() )
@@ -254,7 +229,10 @@ class DVCRunDialog(QtWidgets.QDialog):
 
     def cancel_job(self):
         print ("Should cancel running job")
+        self.widgets['jobid'].setText("Canceling job")
         self.runner.cancel_job()
+        self.widgets['jobid'].setText("Job cancelled")
+        self.widgets['progressBar'].setValue(0)
     
     def appendText(self, txt):
         self.widgets['textEdit'].append(txt)
@@ -328,7 +306,8 @@ class RemoteRunControl(object):
         return True
         
     
-    def run_dvc_worker(self, host, username,port, private_key, logfile, widgets, progress_callback, message_callback):
+    def run_dvc_worker(self, host, username,port, private_key, logfile, widgets, \
+                       update_delay, progress_callback, message_callback):
         
         from time import sleep
         
@@ -421,31 +400,46 @@ module load AMDmodules foss/2019b
         start_at = 0
         while status in [b'PENDING',b'RUNNING']:
             i+=1
+            widgets['jobid'].setText("Job id: {} {}".format(jobid, str(status)))
             if status == b'PENDING':
                 print("job is queueing")
                 # self.statusBar().showMessage("Job queueing")
                 # message_callback.emit("Job {} queueing".format(jobid))
-                widgets['jobid'].setText("Job id: {}".format(jobid))
-                
+                widgets['progressBar'].setMaximum(0)
             else:
                 print("job is running")
+                widgets['progressBar'].setMaximum(100)
                 widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Apply).setText('Running')
-                message_callback.emit("Job {} running".format(jobid))
-                # should tail the file in folder+'/dvc.out'
+                
+                # tails the output of dvc
                 tail = self.pytail(a, logfile, start_at)
                 # count the number of newlines
-                start_at = 0
                 for i in tail:
                     if i == "\n":
                         start_at+=1
                 message_callback.emit("{}".format(tail.decode('utf-8')))
+                # try to infer the progress
+                def progress(line):
+                    import re
+                    match = re.search('^([0-9]*)/([0-9]*)', line.decode('utf-8'))
+                    if match is not None:
+                        return eval(match.group(0))
+                line = tail.splitlines()[-2]
+                curr_progress = progress(line)
+                if curr_progress is not None:
+                    widgets['progressBar'].setValue(int(progress(line)*100))
+                    print ("attempt evaluate progress ", progress(line))
                 
-            sleep(20)
+            sleep(update_delay)
             status = a.job_status(jobid)
         
 
-        # print("retrieve output for job {}".format(jobid))
-        message_callback.emit("retrieve output for job {}".format(jobid))
+        # dvc computation is finished, we get the last part of the output
+        tail = self.pytail(a, logfile, start_at)
+        message_callback.emit("{}".format(tail.decode('utf-8')))
+        # set the progress to 100
+        widgets['progressBar'].setValue(100)
+
         a.changedir(folder)
         a.get_file("slurm-{}.out".format(jobid))
         a.get_file("dvc.out".format(jobid))
@@ -453,7 +447,7 @@ module load AMDmodules foss/2019b
         # output_filename\t{1}/small_grid\t### base name for output files
 
         a.logout()
-        message_callback.emit("Done")
+        
 
     def cancel_job(self):
         host = self.connection_details['server_name']
@@ -470,16 +464,20 @@ module load AMDmodules foss/2019b
         
         tail = '''
 import os, sys, functools
-
-def pytail(filename, start_at, encoding='utf-8'):
-    
+def pytail(filename, start_at):
     with open(filename, 'r') as f:
         # skip to line start_at
         ret = []
-        for i,line in enumerate(f):
+        i = 0
+        while True:
+            line = f.readline()
+            if line == '':
+                break
             if i > start_at:
-                ret.append(f.readline())
+                ret.append(line)
+            i += 1
     return ret
+
 if __name__ == '__main__':
     stdout = pytail(sys.argv[1],int(sys.argv[2]))
     msg = functools.reduce(lambda x,y: x+y, stdout, '')
@@ -494,7 +492,7 @@ if __name__ == '__main__':
         stdout, stderr = connection.run('python pytail.py {} {}'.format(logfile, start_at))
         
         # remove pytail.py from the server.
-        connection.remove_file(dpath.join(connection.remote_home_dir, 'pytail.py'))
+        # connection.remove_file(dpath.join(connection.remote_home_dir, 'pytail.py'))
         
         # print ("logfile", logfile)
         # print ("stdout", stdout.decode('utf-8'))
