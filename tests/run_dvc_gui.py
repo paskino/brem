@@ -129,16 +129,19 @@ class DVCRunDialog(QtWidgets.QDialog):
         bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(
             lambda : self.accept()
         )
+
         bb.button(QtWidgets.QDialogButtonBox.Abort).clicked.connect(
             lambda: self.cancel_job()
         )
+        bb.button(QtWidgets.QDialogButtonBox.Abort).setText("Cancel Job")
         bb.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
             lambda: self.run_job()
         )
+        bb.button(QtWidgets.QDialogButtonBox.Apply).setText("Submit Job")
         
         self.buttonBox = bb
 
-        # add widgets
+        
         # select logfile
         # input files
         # requires 3 different 
@@ -146,6 +149,11 @@ class DVCRunDialog(QtWidgets.QDialog):
 
         # create a form layout widget
         fw = UIFormFactory.getQWidget(parent=self)
+
+        # add widgets
+        jobidl = QtWidgets.QLabel(parent=self)
+        jobidl.setText("Job id: ")
+        fw.uiElements['verticalLayout'].addWidget(jobidl)
         
         ### Example on how to add elements to the 
         # add input 1 as QLineEdit
@@ -178,7 +186,8 @@ class DVCRunDialog(QtWidgets.QDialog):
         cat = QtWidgets.QTextEdit()
         cat.setReadOnly(True)
         cat.setMinimumHeight(100)
-        cat.setMinimumWidth(80)
+        cat.setMinimumWidth(560)
+
         fw.uiElements['verticalLayout'].addWidget(cat)
         # finally 
         # add the button box to the vertical layout, but outside the
@@ -189,7 +198,7 @@ class DVCRunDialog(QtWidgets.QDialog):
 
         # save references 
         self.widgets = {'layout': fw.uiElements['verticalLayout'], 
-                        'buttonBox': bb, 'textEdit': cat}
+                        'buttonBox': bb, 'textEdit': cat, 'jobid': jobidl}
 
         # store a reference
         self.fw = fw
@@ -228,18 +237,24 @@ class DVCRunDialog(QtWidgets.QDialog):
             logfile = dpath.join(folder, "remotedvc.out")
             print ("logfile", logfile)
             self.dvcWorker = Worker(self.runner.run_dvc_worker, host, username, port, 
-                private_key, logfile)
+                private_key, logfile, self.widgets)
             self.dvcWorker.signals.message.connect(self.appendText)
-            self.dvcWorker.signals.finished.connect(lambda: self.Apply.setEnabled(True) )
+            
+            self.dvcWorker.signals.finished.connect(lambda: self.reset_interface() )
         
 
             self.threadpool.start(self.dvcWorker)
             self.Apply.setEnabled(False)
+            self.Apply.setText("Queueing")
         else:
             print ("No connection details")
+    def reset_interface(self):
+        self.Apply.setEnabled(True)
+        self.Apply.setText("Submit job")
 
     def cancel_job(self):
         print ("Should cancel running job")
+        self.runner.cancel_job()
     
     def appendText(self, txt):
         self.widgets['textEdit'].append(txt)
@@ -253,13 +268,17 @@ class RemoteRunControl(object):
     def __init__(self, connection_details=None, 
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
-                 dev_config=None):
+                 dev_config=None, widgets=None):
         self._connection_details = None
         self._reference_fname = None
         self._correlate_fname = None
         self._dvclog_fname = None
         self.conn = None
+        self._jobid = None
 
+    @property
+    def job_id(self):
+        return self._jobid
     @property
     def connection_details(self):
         return self._connection_details
@@ -272,6 +291,9 @@ class RemoteRunControl(object):
     @property
     def dvclog_fname(self):
         return self._dvclog_fname
+    @job_id.setter
+    def job_id(self, value):
+        self._jobid = value
     @connection_details.setter
     def connection_details(self, value):
         if value is not None:
@@ -303,10 +325,10 @@ class RemoteRunControl(object):
                                    'server_name','private_key'])
         if not functools.reduce(ff, self.connection_details.keys(), True):
             return False
+        return True
         
-        # check if filename are defined
     
-    def run_dvc_worker(self, host, username,port, private_key, logfile, progress_callback, message_callback):
+    def run_dvc_worker(self, host, username,port, private_key, logfile, widgets, progress_callback, message_callback):
         
         from time import sleep
         
@@ -391,30 +413,38 @@ module load AMDmodules foss/2019b
 
 
         jobid = a.submit_job(folder,job)
+        self.job_id = jobid
         print(jobid)
         status = a.job_status(jobid)
         print(status)
         i = 0
+        start_at = 0
         while status in [b'PENDING',b'RUNNING']:
             i+=1
             if status == b'PENDING':
                 print("job is queueing")
                 # self.statusBar().showMessage("Job queueing")
-                message_callback.emit("Job {} queueing".format(jobid))
+                # message_callback.emit("Job {} queueing".format(jobid))
+                widgets['jobid'].setText("Job id: {}".format(jobid))
+                
             else:
                 print("job is running")
+                widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Apply).setText('Running')
                 message_callback.emit("Job {} running".format(jobid))
                 # should tail the file in folder+'/dvc.out'
-                stdout, stderr = a.run('tail -n 20 {}'.format(logfile))
-                message_callback.emit("{}".format(stdout.decode('utf-8')))
-                print ("logfile", logfile)
-                print ("stdout", stdout)
-                print ("stdout", stderr)
+                tail = self.pytail(a, logfile, start_at)
+                # count the number of newlines
+                start_at = 0
+                for i in tail:
+                    if i == "\n":
+                        start_at+=1
+                message_callback.emit("{}".format(tail.decode('utf-8')))
+                
             sleep(20)
             status = a.job_status(jobid)
-        #
+        
 
-        print("retrieve output for job {}".format(jobid))
+        # print("retrieve output for job {}".format(jobid))
         message_callback.emit("retrieve output for job {}".format(jobid))
         a.changedir(folder)
         a.get_file("slurm-{}.out".format(jobid))
@@ -424,7 +454,55 @@ module load AMDmodules foss/2019b
 
         a.logout()
         message_callback.emit("Done")
+
+    def cancel_job(self):
+        host = self.connection_details['server_name']
+        username = self.connection_details['username']
+        port = self.connection_details['server_port']
+        private_key = self.connection_details['private_key']
+
+        a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
+        a.login(passphrase=False)
+        a.job_cancel(self.job_id)
+        a.logout()
+    
+    def pytail(self, connection, logfile, start_at):
         
+        tail = '''
+import os, sys, functools
+
+def pytail(filename, start_at, encoding='utf-8'):
+    
+    with open(filename, 'r') as f:
+        # skip to line start_at
+        ret = []
+        for i,line in enumerate(f):
+            if i > start_at:
+                ret.append(f.readline())
+    return ret
+if __name__ == '__main__':
+    stdout = pytail(sys.argv[1],int(sys.argv[2]))
+    msg = functools.reduce(lambda x,y: x+y, stdout, '')
+    print (msg)
+'''             
+        remotehomedir = connection.remote_home_dir
+
+        with open("pytail.py", 'w') as pytail:
+            print (tail, file=pytail)
+        connection.put_file("pytail.py", dpath.join(remotehomedir, 'pytail.py'))
+
+        stdout, stderr = connection.run('python pytail.py {} {}'.format(logfile, start_at))
+        
+        # remove pytail.py from the server.
+        connection.remove_file(dpath.join(connection.remote_home_dir, 'pytail.py'))
+        
+        # print ("logfile", logfile)
+        # print ("stdout", stdout.decode('utf-8'))
+        # print ("stdout", stderr)
+
+        # expand tabs and newlines
+        return stdout
+    
 
 
 if __name__ == "__main__":
