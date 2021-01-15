@@ -214,9 +214,13 @@ class DVCRunDialog(QtWidgets.QDialog):
             self.dvcWorker = Worker(self.runner.run_dvc_worker, host, username, port, 
                 private_key, logfile, self.widgets, 10)
             self.dvcWorker.signals.message.connect(self.appendText)
-            
+            self.dvcWorker.signals.progress.connect(self.update_progress)
             self.dvcWorker.signals.finished.connect(lambda: self.reset_interface() )
-        
+            # add a new signal for status
+            import eqt
+            print ("EQT version", eqt.__version__)
+            self.dvcWorker.signals.status.connect(self.update_status)
+            
 
             self.threadpool.start(self.dvcWorker)
             self.Apply.setEnabled(False)
@@ -227,6 +231,14 @@ class DVCRunDialog(QtWidgets.QDialog):
         self.Apply.setEnabled(True)
         self.Apply.setText("Submit job")
 
+        # 
+        import re
+        m = re.search("^Job ([0-9]*)", self.widgets['jobid'].text())
+        jid = ''
+        if m is not None:
+            jid = m.group(0) 
+        self.widgets['jobid'].setText('{}: Finished'.format(jid))
+
     def cancel_job(self):
         print ("Should cancel running job")
         self.widgets['jobid'].setText("Canceling job")
@@ -236,6 +248,17 @@ class DVCRunDialog(QtWidgets.QDialog):
     
     def appendText(self, txt):
         self.widgets['textEdit'].append(txt)
+
+    def update_progress(self, value):
+        self.widgets['progressBar'].setValue(value)
+
+    def update_status(self, update):
+        
+        self.widgets['jobid'].setText("Job {}: {}".format(*update))
+        if update[1] == b'PENDING':
+            self.widgets['progressBar'].setMaximum(0)
+        else:
+            self.widgets['progressBar'].setMaximum(100)
         
     
     
@@ -243,7 +266,7 @@ class DVCRunDialog(QtWidgets.QDialog):
     
 import functools
 class RemoteRunControl(object):
-    def __init__(self, connection_details=None, 
+    def __init__(self, parent=None, connection_details=None, 
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
                  dev_config=None, widgets=None):
@@ -307,7 +330,7 @@ class RemoteRunControl(object):
         
     
     def run_dvc_worker(self, host, username,port, private_key, logfile, widgets, \
-                       update_delay, progress_callback, message_callback):
+                       update_delay, progress_callback, message_callback, status_callback):
         
         from time import sleep
         
@@ -400,16 +423,14 @@ module load AMDmodules foss/2019b
         start_at = 0
         while status in [b'PENDING',b'RUNNING']:
             i+=1
-            widgets['jobid'].setText("Job id: {} {}".format(jobid, str(status)))
+            # widgets['jobid'].setText("Job id: {} {}".format(jobid, str(status)))
+            status_callback.emit((jobid, status.decode('utf-8')))
             if status == b'PENDING':
                 print("job is queueing")
-                # self.statusBar().showMessage("Job queueing")
                 # message_callback.emit("Job {} queueing".format(jobid))
-                widgets['progressBar'].setMaximum(0)
             else:
                 print("job is running")
-                widgets['progressBar'].setMaximum(100)
-                widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Apply).setText('Running')
+                # widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Apply).setText('Running')
                 
                 # tails the output of dvc
                 tail = self.pytail(a, logfile, start_at)
@@ -421,13 +442,21 @@ module load AMDmodules foss/2019b
                 # try to infer the progress
                 def progress(line):
                     import re
-                    match = re.search('^([0-9]*)/([0-9]*)', line.decode('utf-8'))
-                    if match is not None:
-                        return eval(match.group(0))
-                line = tail.splitlines()[-2]
+                    try:
+                        match = re.search('^([0-9]*)/([0-9]*)', line.decode('utf-8'))
+                        if match is not None:
+                            return eval(match.group(0))
+                    except Exception as err:
+                        print (err)
+
+                line = tail.splitlines()
+                if len(line) >= 2:
+                    line = line[-2]
+
                 curr_progress = progress(line)
                 if curr_progress is not None:
-                    widgets['progressBar'].setValue(int(progress(line)*100))
+                    # widgets['progressBar'].setValue(int(progress(line)*100))
+                    progress_callback.emit(int(progress(line)*100))
                     print ("attempt evaluate progress ", progress(line))
                 
             sleep(update_delay)
@@ -438,7 +467,7 @@ module load AMDmodules foss/2019b
         tail = self.pytail(a, logfile, start_at)
         message_callback.emit("{}".format(tail.decode('utf-8')))
         # set the progress to 100
-        widgets['progressBar'].setValue(100)
+        progress_callback.emit(100)
 
         a.changedir(folder)
         a.get_file("slurm-{}.out".format(jobid))
