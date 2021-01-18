@@ -10,7 +10,7 @@ from dvc_x.ui import RemoteServerSettingDialog
 import dvc_x as drx
 from eqt.threading import Worker
 from eqt.ui import FormDialog, UIFormFactory
-
+import pysnooper
 
 class MainUI(QtWidgets.QMainWindow):
 
@@ -89,7 +89,7 @@ class MainUI(QtWidgets.QMainWindow):
             private_key = self.connection_details['private_key']
 
             logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
-            logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
+            # logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
             dialogue = DVCRunDialog(    parent=self,
                                         title="Run Remote Monitor", 
                                         connection_details=self.connection_details
@@ -211,18 +211,18 @@ class DVCRunDialog(QtWidgets.QDialog):
             folder=dpath.abspath("/work3/cse/dvc/test-edo")
             logfile = dpath.join(folder, "remotedvc.out")
             print ("logfile", logfile)
-            self.dvcWorker = Worker(self.runner.run_dvc_worker, host, username, port, 
-                private_key, logfile, self.widgets, 10)
+            self.dvcWorker = Worker(self.runner.run_dvc_worker, 
+                host=host, username=username, port=port, 
+                private_key=private_key, logfile=logfile, update_delay=10)
+            # connect signal/slots
             self.dvcWorker.signals.message.connect(self.appendText)
             self.dvcWorker.signals.progress.connect(self.update_progress)
             self.dvcWorker.signals.finished.connect(lambda: self.reset_interface() )
-            # add a new signal for status
-            import eqt
-            print ("EQT version", eqt.__version__)
             self.dvcWorker.signals.status.connect(self.update_status)
             
 
             self.threadpool.start(self.dvcWorker)
+
             self.Apply.setEnabled(False)
             self.Apply.setText("Queueing")
         else:
@@ -269,7 +269,7 @@ class RemoteRunControl(object):
     def __init__(self, parent=None, connection_details=None, 
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
-                 dev_config=None, widgets=None):
+                 dev_config=None):
         self._connection_details = None
         self._reference_fname = None
         self._correlate_fname = None
@@ -328,9 +328,20 @@ class RemoteRunControl(object):
             return False
         return True
         
-    
-    def run_dvc_worker(self, host, username,port, private_key, logfile, widgets, \
-                       update_delay, progress_callback, message_callback, status_callback):
+    # @pysnooper.snoop()
+    def run_dvc_worker(self, **kwargs):
+        # retrieve the appropriate parameters from the kwargs
+        host         = kwargs.get('host', None)
+        username     = kwargs.get('username', None)
+        port         = kwargs.get('port', None)
+        private_key  = kwargs.get('private_key', None)
+        logfile      = kwargs.get('logfile', None)
+        update_delay = kwargs.get('update_delay', None)
+        # get the callbacks
+        message_callback  = kwargs.get('message_callback', None)
+        progress_callback = kwargs.get('progress_callback', None)
+        status_callback   = kwargs.get('status_callback', None)
+        
         
         from time import sleep
         
