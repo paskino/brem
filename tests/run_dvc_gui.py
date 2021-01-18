@@ -104,13 +104,21 @@ class MainUI(QtWidgets.QMainWindow):
             host = self.connection_details['server_name']
             private_key = self.connection_details['private_key']
             folder=dpath.abspath("/work3/cse/dvc/test-edo")
-            logfile = dpath.join(folder, "remotedvc.out")
+            logfile = dpath.join(folder, "remotedvc_proc.out")
             print ("logfile", logfile)
-            self.dvcWorker = Worker(self.run_dvc_worker, host, username, port, 
-                private_key, logfile)
-            self.dvcWorker.signals.message.connect(self.updateStatusBar)
 
-            self.threadpool.start(self.dvcWorker)
+
+            # self.dvcWorker = Worker(self.run_dvc_worker, host, username, port, 
+            #     private_key, logfile)
+            # self.dvcWorker.signals.message.connect(self.updateStatusBar)
+
+            # self.threadpool.start(self.dvcWorker)
+
+            self.run_control = RemoteRunControl(parent=self, connection_details=self.connection_details, 
+                                                dvclog_filename=logfile)
+            self.run_control.create_job()
+            self.run_control.signals.message.connect(self.updateStatusBar)
+            self.run_control.run_job()
         else:
             print ("No connection details")
 
@@ -265,18 +273,52 @@ class DVCRunDialog(QtWidgets.QDialog):
 
     
 import functools
+
+class RemoteRunControlSignals(QtCore.QObject):
+    status = QtCore.Signal(str)
+    job_id = QtCore.Signal(int)
+
 class RemoteRunControl(object):
     def __init__(self, parent=None, connection_details=None, 
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
                  dev_config=None):
         self._connection_details = None
-        self._reference_fname = None
-        self._correlate_fname = None
-        self._dvclog_fname = None
-        self.conn = None
-        self._jobid = None
+        self._reference_fname    = None
+        self._correlate_fname    = None
+        self._dvclog_fname       = None
+        self.conn                = None
+        self._jobid              = None
+        self._job_status         = None
+        
+        self.internalsignals = RemoteRunControlSignals()
+        self.internalsignals.job_id.connect(self.job_id)
+        self.internalsignals.status.connect(self.job_status)
+        
+        self.threadpool = QtCore.QThreadPool()
+        self.dvcWorker = None
+        
 
+    def create_job(self):
+        username = self.connection_details['username']
+        port = self.connection_details['server_port']
+        host = self.connection_details['server_name']
+        private_key = self.connection_details['private_key']
+        self.dvcWorker = Worker(self.run_dvc_worker, 
+                host=host, username=username, port=port, 
+                private_key=private_key, logfile=self.dvclog_fname, 
+                update_delay=10)
+        # signal/slots should be connected from outside
+    
+    @property
+    def signals(self):
+        if self.dvcWorker is not None:
+            return self.dvcWorker.signals
+        return None
+
+    def run_job(self):
+        self.threadpool.start(self.dvcWorker)
+        
     @property
     def job_id(self):
         return self._jobid
@@ -292,8 +334,12 @@ class RemoteRunControl(object):
     @property
     def dvclog_fname(self):
         return self._dvclog_fname
+    @property
+    def job_status(self):
+        return self._job_status
     @job_id.setter
     def job_id(self, value):
+        print ("setting job_id", value)
         self._jobid = value
     @connection_details.setter
     def connection_details(self, value):
@@ -327,7 +373,11 @@ class RemoteRunControl(object):
         if not functools.reduce(ff, self.connection_details.keys(), True):
             return False
         return True
-        
+    @job_status.setter
+    def job_status(self, value):
+        print("setting job_status", value)
+        if self.job_id is not None:
+            self._job_status = value
     # @pysnooper.snoop()
     def run_dvc_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
