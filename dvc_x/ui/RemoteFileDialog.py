@@ -8,7 +8,7 @@ import glob
 from functools import partial
 import dvc_x as drx
 import stat
-from eqt.threading.QtThreading import Worker
+from eqt.threading import Worker
 
 dpath = os.path
 
@@ -16,20 +16,9 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
     def __init__(self, parent = None, \
         logfile=None, port=None, host=None, username=None, private_key=None,
-        remote_os=None):
+        remote_os=None, is_save=False):
         QtWidgets.QDialog.__init__(self, parent)
 
-        # self.setWindowModality(QtCore.Qt.ApplicationModal)
-        
-        # dialog = QtWidgets.QFileDialog.getOpenFileUrl(self, "select file", dir=url )
-        # dialog = QtWidgets.QFileDialog(self, "select file")
-        # dialog.selectUrl(url)
-        # dialog.show()
-        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
-                                     | QtWidgets.QDialogButtonBox.Cancel)
-
-        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(lambda: self.accepted())
-        bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
         
         # Add vertical layout to dock contents
         vl = QtWidgets.QVBoxLayout(self)
@@ -47,16 +36,21 @@ class RemoteFileDialog(QtWidgets.QDialog):
         vl.addLayout(hl)
         vl.addWidget(push_button)
         vl.addWidget(tw)
-        vl.addWidget(bb)
+        # vl.addWidget(bb)
 
         self.setLayout(vl)
 
         # save references 
-        self.widgets = {'layout': vl, 'buttonBox':bb, 'tableWidget': tw, 
+        self.widgets = {'layout': vl, 'tableWidget': tw, 
                         'browseButton': push_button, 'lineEdit': line_edit, 
                         'upButton': up, 'horizLayot': hl}
+        if is_save:
+            self.createButtonBoxSave()
+        else:
+            self.createButtonBoxSelect()
+        self.is_save = is_save
+
         self.layout = vl
-        self.buttonBox = bb
         self.tableWidget = tw
         self.push_button = push_button
         self.line_edit = line_edit
@@ -84,6 +78,35 @@ class RemoteFileDialog(QtWidgets.QDialog):
     @property
     def Ok(self):
         return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Ok)
+    
+    @property
+    def Save(self):
+        return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Save)
+    
+    def createButtonBoxSelect(self):
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
+                                     | QtWidgets.QDialogButtonBox.Cancel)
+
+        bb.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(lambda: self.accepted())
+        bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
+        self.addButtonBoxToLayout(bb)
+
+    def addButtonBoxToLayout(self, bb):
+        self.widgets['layout'].addWidget(bb)
+        
+        self.buttonBox = bb
+        self.widgets['buttonBox'] = bb
+
+    def createButtonBoxSave(self):
+        # create new buttonBox with Save
+        bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Save
+                                      | QtWidgets.QDialogButtonBox.Cancel)
+
+        bb.button(QtWidgets.QDialogButtonBox.Save).clicked.connect(
+            lambda: self.accepted_save())
+        bb.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(lambda: self.rejected())
+        
+        self.addButtonBoxToLayout(bb)
 
     def setupConnection(self, logfile=None, port=None, host=None, \
             username=None, private_key=None, remote_os=None):
@@ -99,13 +122,16 @@ class RemoteFileDialog(QtWidgets.QDialog):
 
     def setup_menubar(self):
         pass
+    
+    def accepted_save(self):
+        self.selected = self.widgets['lineEdit'].text()
+        self.close()
 
     def accepted(self):
         sel = self.tableWidget.selectedItems()
         if len(sel) > 0:
             selected = []
             for it in sel:
-                print ("Selected", it.text())
                 selected.append((self.widgets['lineEdit'].text(), it.text()))
             self.selected = selected
             self.close()
@@ -118,10 +144,6 @@ class RemoteFileDialog(QtWidgets.QDialog):
         pb = QtWidgets.QPushButton()
         pb.setText("Browse..")
         pb.clicked.connect(lambda: self.globDirectoryAndFillTable())
-        
-        pb = QtWidgets.QPushButton()
-        pb.setText("Browse..")
-
         
         up = QtWidgets.QPushButton()
         up.setIcon(QtWidgets.QApplication.style().standardPixmap((QtWidgets.QStyle.SP_ArrowUp)))
@@ -137,13 +159,20 @@ class RemoteFileDialog(QtWidgets.QDialog):
         hl.addWidget(le)
         
         return hl, up, le, pb
+    def handleReturnPressed(self):
+        if self.is_save:
+            if self.isDir(self.line_edit.text()):
+                self.globDirectoryAndFillTable()
+            else:
+                self.accepted_save()
+        else:
+            self.globDirectoryAndFillTable()
 
     def globDirectoryAndFillTable(self):
         # load data into table widget
         # set OverrideCursor to WaitCursor
         QtGui.QGuiApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         directory = dpath.abspath(self.line_edit.text())
-        # print ("trying to list ", directory)
         
         err = None
         try:
@@ -171,11 +200,9 @@ class RemoteFileDialog(QtWidgets.QDialog):
             msg.setText("Error {}".format(str(err)))
             msg.exec()
             return
-        # print (data)
         ddata = []
         for el in data[1]:
             ddata.append((data[0], el))
-        # print (ddata)
         self.loadIntoTableWidget(ddata)
         # restore OverrideCursor
         QtGui.QGuiApplication.restoreOverrideCursor()
@@ -195,7 +222,6 @@ class RemoteFileDialog(QtWidgets.QDialog):
         le = self.widgets['lineEdit']
         current_dir = self.getCurrentRemoteDirectory()
         parent_dir  = self.getCurrentParentRemoteDirectory()
-        print ("current_dir, parent_dir", current_dir, parent_dir )
         le.setText(str(parent_dir))
         self.globDirectoryAndFillTable()
 
@@ -316,5 +342,3 @@ class RemoteFileDialog(QtWidgets.QDialog):
             table.setItem(row, 0, QtWidgets.QTableWidgetItem(str(error)))
         else:
             table.setItem(row, 0, QtWidgets.QTableWidgetItem(str(rstat)))
-
-

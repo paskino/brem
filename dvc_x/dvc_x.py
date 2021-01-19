@@ -17,7 +17,7 @@ class DVCRem:
         self.username = username
         self.private_key = private_key
         self.remote_os = remote_os
-        
+
         if private_key is not None:
             self.private_key = private_key
         if logfile is not None:
@@ -28,13 +28,13 @@ class DVCRem:
             self.host = host
         if username is not None:
             self.username = username
-        
-        global remotepath 
+
+        global remotepath
         remotepath = posixpath
-        if remote_os is not None:     
+        if remote_os is not None:
             if remote_os == 'Windows':
                 remotepath = ntpath
-            
+
         ssh.util.log_to_file(self.logfile)
         self.identity = None
         self.channel = None
@@ -113,7 +113,7 @@ class DVCRem:
             raise ValueError('Please provide login first')
     @property
     def local_home_dir(self):
-        
+
         return os.path.expanduser("~")
 
     def get_file(self,filename):
@@ -169,7 +169,7 @@ class DVCRem:
 
 {job}
             '''.format(nodes=nodes, tps=tps,cons=cons,name=name,time=time,job=job),file=f)
-        self.put_file(ff)
+        self.put_file(ff, remote_filename=remotepath.join(jdir, ff))
         stdout, stderr = self.run("cd {} && sbatch ./{}".format(jdir,ff))
         a=stdout.strip().split()
         if a[0] != "Submitted":
