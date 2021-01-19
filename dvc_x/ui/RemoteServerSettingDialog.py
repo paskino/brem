@@ -1,5 +1,5 @@
 from PySide2 import QtCore, QtGui, QtWidgets
-from dvc_x.ui.UIFormWidget import UIFormFactory
+from eqt.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
 import dvc_x as drx
@@ -82,7 +82,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget = QtWidgets.QLineEdit(fw.groupBox)
         qwidget.setClearButtonEnabled(True)
         # finally add to the form widget
-        fw.addWidget('server_name', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'server_name' )
 
         # add server port
         qlabel = QtWidgets.QLabel(fw.groupBox)
@@ -95,7 +95,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         validator.setTop(65535)
         qwidget.setValidator(validator)
         # finally add to the form widget
-        fw.addWidget('server_port', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'server_port')
         
         # add user name
         qlabel = QtWidgets.QLabel(fw.groupBox)
@@ -103,7 +103,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget = QtWidgets.QLineEdit(fw.groupBox)
         qwidget.setClearButtonEnabled(True)
         # finally add to the form widget
-        fw.addWidget('username', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'username')
 
         # add user name
         qlabel = QtWidgets.QLabel(fw.groupBox)
@@ -114,7 +114,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget.setCurrentIndex(0)
         qwidget.setEnabled(True)
         # finally add to the form widget
-        fw.addWidget('remote_os', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'remote_os')
 
         # add private key
         qlabel = QtWidgets.QLabel(fw.groupBox)
@@ -122,7 +122,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget = QtWidgets.QLineEdit(fw.groupBox)
         qwidget.setClearButtonEnabled(True)
         # finally add to the form widget
-        fw.addWidget('private_key', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'private_key')
 
         # add private key
         qlabel = QtWidgets.QLabel(fw.groupBox)
@@ -131,7 +131,7 @@ class RemoteServerSettingDialog(QtWidgets.QDialog):
         qwidget.setText("Browse")
         qwidget.clicked.connect(lambda: self.browseForPrivateKeyFile())
         # finally add to the form widget
-        fw.addWidget('button_private_key', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'button_private_key')
     
     def createPresetComboBox(self):
         combo = QtWidgets.QComboBox()
