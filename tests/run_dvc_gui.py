@@ -90,13 +90,19 @@ class MainUI(QtWidgets.QMainWindow):
 
             logfile = os.path.join(os.getcwd(), "RemoteFileDialog.log")
             # logfile = os.path.abspath("C:/Users/ofn77899/Documents/Projects/CCPi/GitHub/PythonWorkRemote/dvc_x/RemoteFileDialogue.log")
-            dialogue = DVCRunDialog(    parent=self,
+            if self.run_control.job_id is not None:
+
+                dialogue = DVCSLURMProgressDialog(    parent=self,
                                         title="Run Remote Monitor", 
-                                        connection_details=self.connection_details
+                                        connection_details=self.connection_details, 
+                                        job_ids = [self.run_control.job_id]
                                         )
-            dialogue.Ok.clicked.connect(dialogue.close)
+                dialogue.Ok.clicked.connect(dialogue.close)
             
-            dialogue.exec()
+                dialogue.exec()
+            else:
+                pass
+
     def runRemote(self):
         if hasattr(self, 'connection_details'):
             username = self.connection_details['username']
@@ -130,6 +136,8 @@ class MainUI(QtWidgets.QMainWindow):
             msg = status
         elif isinstance(status, tuple):
             msg = "Job {}: {}".format(*status)
+            if status[1] in ['PENDING', 'RUNNING', 'FINISHED']:
+                self.job_id = status[0]
         else:
             msg = 'Some update, type status {}'.format(type(status))
         self.statusBar().showMessage(msg)
@@ -138,9 +146,14 @@ class MainUI(QtWidgets.QMainWindow):
         msg = ( self.run_control.job_id, "FINISHED" )
         self.updateStatusBar(msg)
 
-class DVCRunDialog(QtWidgets.QDialog):
-    def __init__(self, parent, title, connection_details):
+class DVCSLURMProgressDialog(QtWidgets.QDialog):
+    def __init__(self, parent, title, connection_details, job_ids):
         QtWidgets.QDialog.__init__(self, parent)
+
+        self._job_ids = None
+        self.job_ids = job_ids
+        self.parent_app = parent
+
         bb = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok
                                      | QtWidgets.QDialogButtonBox.Apply
                                      | QtWidgets.QDialogButtonBox.Abort)
@@ -153,10 +166,15 @@ class DVCRunDialog(QtWidgets.QDialog):
             lambda: self.cancel_job()
         )
         bb.button(QtWidgets.QDialogButtonBox.Abort).setText("Cancel Job")
+        # let's use this button to connect to a running job
         bb.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
-            lambda: self.run_job()
+            lambda: self.monitor_job()
         )
-        bb.button(QtWidgets.QDialogButtonBox.Apply).setText("Submit Job")
+        # bb.button(QtWidgets.QDialogButtonBox.Apply).clicked.connect(
+        #     lambda: self.run_job()
+        # )
+        
+        bb.button(QtWidgets.QDialogButtonBox.Apply).setText("Monitor Job")
         
         
         # select logfile
@@ -165,8 +183,18 @@ class DVCRunDialog(QtWidgets.QDialog):
         # self.addWidget()
 
         # add widgets
-        jobidl = QtWidgets.QLabel(parent=self)
-        jobidl.setText("Job id: ")
+        # jobidl = QtWidgets.QLabel(parent=self)
+        # jobidl.setText("Job id: ")
+        
+        # combo box to select the job id
+        formWidget = UIFormFactory.getQWidget(parent=self)
+        combo = QtWidgets.QComboBox(formWidget.groupBox)
+        for job in self.job_ids:
+            combo.addItem(str(job))
+        formWidget.addWidget(combo,'Job id:', 'job_selector')
+
+        status = QtWidgets.QLabel(formWidget.groupBox)
+        formWidget.addWidget(status, 'Status:', 'status')
 
         # progress bar
         prog_bar = QtWidgets.QProgressBar(parent=self)
@@ -180,7 +208,8 @@ class DVCRunDialog(QtWidgets.QDialog):
         cat.setMinimumWidth(560)
 
         vert_layout = QtWidgets.QVBoxLayout(self)
-        vert_layout.addWidget(jobidl)
+        # vert_layout.addWidget(jobidl)
+        vert_layout.addWidget(formWidget)
         vert_layout.addWidget(prog_bar)
         vert_layout.addWidget(cat)
         # finally 
@@ -192,20 +221,38 @@ class DVCRunDialog(QtWidgets.QDialog):
 
         # save references 
         self.widgets = {'layout': vert_layout, 
-                        'buttonBox': bb, 'textEdit': cat, 'jobid': jobidl, 
-                        'progressBar': prog_bar}
+                        'buttonBox': bb, 'textEdit': cat, 
+                        # 'jobid': jobidl, 
+                        'progressBar': prog_bar, 'formWidget': formWidget, 'job_selector': combo}
 
-        # store a reference
-        self.threadpool = QtCore.QThreadPool()
-
+        
         self.connection_details = connection_details
+        
+        # store a reference
+        # self.threadpool = QtCore.QThreadPool()
+        # # create a RemoteRunControl
+        # self.runner = RemoteRunControl()
+        # self.runner.connection_details = connection_details
+        # folder=dpath.abspath("/work3/cse/dvc/test-edo")
+        # logfile = dpath.join(folder, "remotedvc.out")
+        # self.runner.dvclog_fname = logfile
 
-        # create a RemoteRunControl
-        self.runner = RemoteRunControl()
-        self.runner.connection_details = connection_details
-        folder=dpath.abspath("/work3/cse/dvc/test-edo")
-        logfile = dpath.join(folder, "remotedvc.out")
-        self.runner.dvclog_fname = logfile
+    @property
+    def job_ids(self):
+        return self._job_ids
+    @job_ids.setter
+    def job_ids(self, value):
+        self._job_ids = list(value)
+    
+    def monitor_job(self):
+        print ("should know which job this is! {}".format(self.job_ids))
+        jobid = self.widgets['job_selector'].currentText()
+        run_control = self.parent_app.run_control
+        run_control.signals.message.connect(self.appendText)
+        run_control.signals.progress.connect(self.update_progress)
+        run_control.signals.finished.connect(lambda: self.reset_interface() )
+        run_control.signals.status.connect(self.update_status)
+        
 
     @property
     def Ok(self):
@@ -249,33 +296,38 @@ class DVCRunDialog(QtWidgets.QDialog):
     def reset_interface(self):
         self.Apply.setEnabled(True)
         self.Apply.setText("Submit job")
-
         # 
-        import re
-        m = re.search("^Job ([0-9]*)", self.widgets['jobid'].text())
-        jid = ''
-        if m is not None:
-            jid = m.group(0) 
-        self.widgets['jobid'].setText('{}: Finished'.format(jid))
+        # import re
+        # m = re.search("^Job ([0-9]*)", self.widgets['jobid'].text())
+        # jid = ''
+        # if m is not None:
+        #     jid = m.group(0) 
+        # self.widgets['jobid'].setText('{}: Finished'.format(jid))
+        self.widgets['formWidget'].widgets['status_field'].setText('FINISHED')
 
     def cancel_job(self):
         print ("Should cancel running job")
-        self.widgets['jobid'].setText("Canceling job")
+        # self.statusBar().showMessage("Canceling job")
         self.runner.cancel_job()
-        self.widgets['jobid'].setText("Job cancelled")
+        # self.statusBar().showMessage("Job cancelled")
         self.widgets['progressBar'].setValue(0)
     
     def appendText(self, txt):
+        print ("DVCSLURMProgressDialog appendText")
         self.widgets['textEdit'].append(txt)
 
     def update_progress(self, value):
+        print ("DVCSLURMProgressDialog update_progress")
         self.widgets['progressBar'].setValue(value)
 
     def update_status(self, update):
-        
-        self.widgets['jobid'].setText("Job {}: {}".format(*update))
+        print ("DVCSLURMProgressDialog update_status")
+        self.widgets['formWidget'].widgets['status_field'].setText(update[1])
+        # self.statusBar().showMessage("Job {}: {}".format(*update))
         if update[1] == b'PENDING':
             self.widgets['progressBar'].setMaximum(0)
+            self.widgets['progressBar'].setMinimum(0)
+            self.widgets['progressBar'].setValue(0)
         else:
             self.widgets['progressBar'].setMaximum(100)
         
