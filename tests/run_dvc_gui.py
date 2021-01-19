@@ -116,8 +116,9 @@ class MainUI(QtWidgets.QMainWindow):
 
             self.run_control = RemoteRunControl(parent=self, connection_details=self.connection_details, 
                                                 dvclog_filename=logfile)
-            self.run_control.create_job()
-            self.run_control.signals.message.connect(self.updateStatusBar)
+            # self.run_control.create_job()
+            self.run_control.signals.status.connect(self.updateStatusBar)
+            self.run_control.signals.finished.connect(self.processFinished)
             self.run_control.run_job()
         else:
             print ("No connection details")
@@ -125,7 +126,17 @@ class MainUI(QtWidgets.QMainWindow):
     
 
     def updateStatusBar(self, status):
-        self.statusBar().showMessage(status)
+        if isinstance(status, str):
+            msg = status
+        elif isinstance(status, tuple):
+            msg = "Job {}: {}".format(*status)
+        else:
+            msg = 'Some update, type status {}'.format(type(status))
+        self.statusBar().showMessage(msg)
+
+    def processFinished(self):
+        msg = ( self.run_control.job_id, "FINISHED" )
+        self.updateStatusBar(msg)
 
 class DVCRunDialog(QtWidgets.QDialog):
     def __init__(self, parent, title, connection_details):
@@ -283,10 +294,10 @@ class RemoteRunControl(object):
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
                  dev_config=None):
-        self._connection_details = None
-        self._reference_fname    = None
-        self._correlate_fname    = None
-        self._dvclog_fname       = None
+        self.connection_details = connection_details
+        self.reference_fname    = reference_filename
+        self.correlate_fname    = correlate_filename
+        self.dvclog_fname       = dvclog_filename
         self.conn                = None
         self._jobid              = None
         self._job_status         = None
@@ -300,6 +311,9 @@ class RemoteRunControl(object):
         
 
     def create_job(self):
+        if not self.check_configuration():
+            raise ValueError('Connection details are not specified or complete. Got', \
+                        self.connection_details)
         username = self.connection_details['username']
         port = self.connection_details['server_port']
         host = self.connection_details['server_name']
@@ -314,7 +328,10 @@ class RemoteRunControl(object):
     def signals(self):
         if self.dvcWorker is not None:
             return self.dvcWorker.signals
-        return None
+        else:
+            # try to create a worker
+            self.create_job()
+            return self.dvcWorker.signals
 
     def run_job(self):
         self.threadpool.start(self.dvcWorker)
@@ -322,62 +339,66 @@ class RemoteRunControl(object):
     @property
     def job_id(self):
         return self._jobid
-    @property
-    def connection_details(self):
-        return self._connection_details
-    @property
-    def reference_fname(self):
-        return self._reference_fname
-    @property
-    def correlate_fname(self):
-        return self._correlate_fname
-    @property
-    def dvclog_fname(self):
-        return self._dvclog_fname
-    @property
-    def job_status(self):
-        return self._job_status
     @job_id.setter
     def job_id(self, value):
         print ("setting job_id", value)
         self._jobid = value
+    @property
+    def connection_details(self):
+        return self._connection_details
     @connection_details.setter
     def connection_details(self, value):
         if value is not None:
             self._connection_details = dict(value)
         else:
             self._connection_details = None
+    @property
+    def reference_fname(self):
+        return self._reference_fname
     @reference_fname.setter
     def reference_fname(self, value):
         '''setter for reference file name.'''
         self._reference_fname = value
-        if self.check_configuration():
-            self.set_up()
+        
+    @property
+    def correlate_fname(self):
+        return self._correlate_fname
     @correlate_fname.setter
     def correlate_fname(self, value):
         '''setter for correlate file name.'''
         self._correlate_fname = value
-        if self.check_configuration():
-            self.set_up()
+        
+    @property
+    def dvclog_fname(self):
+        return self._dvclog_fname
     @dvclog_fname.setter
     def dvclog_fname(self, value):
         '''setter for dvclog file name.'''
         self._dvclog_fname = value
-        if self.check_configuration():
-            self.set_up()
-    def check_configuration(self):
-        def f (a,x,y):
-            return x in a and y
-        ff = functools.partial(f, ['username','server_port',
-                                   'server_name','private_key'])
-        if not functools.reduce(ff, self.connection_details.keys(), True):
-            return False
-        return True
+        
+    @property
+    def job_status(self):
+        return self._job_status
     @job_status.setter
     def job_status(self, value):
         print("setting job_status", value)
         if self.job_id is not None:
             self._job_status = value
+    
+    @pysnooper.snoop()
+    def check_configuration(self):
+        def f (a,x,y):
+            return x in a and y
+        ff = functools.partial(f, self.connection_details.keys())
+        # return functools.reduce(ff, ['username','server_port', 'server_name','private_key'], True)
+        required = ['username','server_port', 'server_name','private_key']
+        available = self.connection_details.keys()
+        ret = True
+        for x in required:
+            ret = ret and (x in available)
+        return ret
+            
+    
     # @pysnooper.snoop()
     def run_dvc_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
