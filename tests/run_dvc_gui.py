@@ -129,6 +129,8 @@ class MainUI(QtWidgets.QMainWindow):
         else:
             print ("No connection details")
 
+    def cancel_job(self, job_id):
+        pass
     
 
     def updateStatusBar(self, status):
@@ -252,6 +254,7 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
         run_control.signals.progress.connect(self.update_progress)
         run_control.signals.finished.connect(lambda: self.reset_interface() )
         run_control.signals.status.connect(self.update_status)
+        # run_control.internalsignals.cancelled(self.on_cancelled)
         
 
     @property
@@ -266,49 +269,20 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
     def Abort(self):
         return self.widgets['buttonBox'].button(QtWidgets.QDialogButtonBox.Abort)
 
-    
-    
-    def run_job(self):
-        if hasattr(self, 'connection_details'):
-            username = self.connection_details['username']
-            port = self.connection_details['server_port']
-            host = self.connection_details['server_name']
-            private_key = self.connection_details['private_key']
-            folder=dpath.abspath("/work3/cse/dvc/test-edo")
-            logfile = dpath.join(folder, "remotedvc.out")
-            print ("logfile", logfile)
-            self.dvcWorker = Worker(self.runner.run_dvc_worker, 
-                host=host, username=username, port=port, 
-                private_key=private_key, logfile=logfile, update_delay=10)
-            # connect signal/slots
-            self.dvcWorker.signals.message.connect(self.appendText)
-            self.dvcWorker.signals.progress.connect(self.update_progress)
-            self.dvcWorker.signals.finished.connect(lambda: self.reset_interface() )
-            self.dvcWorker.signals.status.connect(self.update_status)
-            
-
-            self.threadpool.start(self.dvcWorker)
-
-            self.Apply.setEnabled(False)
-            self.Apply.setText("Queueing")
-        else:
-            print ("No connection details")
     def reset_interface(self):
         self.Apply.setEnabled(True)
-        self.Apply.setText("Submit job")
-        # 
-        # import re
-        # m = re.search("^Job ([0-9]*)", self.widgets['jobid'].text())
-        # jid = ''
-        # if m is not None:
-        #     jid = m.group(0) 
-        # self.widgets['jobid'].setText('{}: Finished'.format(jid))
-        self.widgets['formWidget'].widgets['status_field'].setText('FINISHED')
+        # check if the job had been cancelled
+        run_control = self.parent_app.run_control
+        selected_job = self.widgets['job_selector'].currentText()
+        status = run_control.jobs[selected_job]
+        self.widgets['formWidget'].widgets['status_field'].setText(status)
 
     def cancel_job(self):
         print ("Should cancel running job")
         # self.statusBar().showMessage("Canceling job")
-        self.runner.cancel_job()
+        selected_job = self.widgets['job_selector'].currentText()
+        run_control = self.parent_app.run_control
+        run_control.cancel_job(selected_job)
         # self.statusBar().showMessage("Job cancelled")
         self.widgets['progressBar'].setValue(0)
     
@@ -331,6 +305,10 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
         else:
             self.widgets['progressBar'].setMaximum(100)
         
+    def on_cancelled(self):
+        #self.
+        jobid = self.widgets['job_selector'].currentText()
+
     
     
 
@@ -338,7 +316,7 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
 import functools
 
 class RemoteRunControlSignals(QtCore.QObject):
-    status = QtCore.Signal(str)
+    status = QtCore.Signal(tuple)
     job_id = QtCore.Signal(int)
 
 class RemoteRunControl(object):
@@ -353,14 +331,23 @@ class RemoteRunControl(object):
         self.conn                = None
         self._jobid              = None
         self._job_status         = None
+        self.jobs                = {}
         
         self.internalsignals = RemoteRunControlSignals()
-        self.internalsignals.job_id.connect(self.job_id)
-        self.internalsignals.status.connect(self.job_status)
+        self.internalsignals.job_id.connect(self.set_job_id)
+        self.internalsignals.status.connect(self.set_job_status)
         
         self.threadpool = QtCore.QThreadPool()
         self.dvcWorker = None
-        
+    
+    def set_job_id(self, value):
+        self.job_id = value
+        self.jobs[value] = None
+        # attach finished signal
+        # self.dvcWorker.signals.finished.connect(lambda: self.job_finished())
+    def set_job_status(self, value):
+        self.job_status = value[1]
+        self.jobs[value[0]] = value[1]
 
     def create_job(self):
         if not self.check_configuration():
@@ -374,7 +361,8 @@ class RemoteRunControl(object):
                 host=host, username=username, port=port, 
                 private_key=private_key, logfile=self.dvclog_fname, 
                 update_delay=10)
-        # signal/slots should be connected from outside
+        
+        # other signal/slots should be connected from outside
     
     @property
     def signals(self):
@@ -437,7 +425,7 @@ class RemoteRunControl(object):
         if self.job_id is not None:
             self._job_status = value
     
-    @pysnooper.snoop()
+    
     def check_configuration(self):
         def f (a,x,y):
             return x in a and y
@@ -559,6 +547,7 @@ module load AMDmodules foss/2019b
             i+=1
             # widgets['jobid'].setText("Job id: {} {}".format(jobid, str(status)))
             status_callback.emit((jobid, status.decode('utf-8')))
+            self.internalsignals.status.emit((jobid, status.decode('utf-8')))
             if status == b'PENDING':
                 print("job is queueing")
                 # message_callback.emit("Job {} queueing".format(jobid))
@@ -610,9 +599,10 @@ module load AMDmodules foss/2019b
         # output_filename\t{1}/small_grid\t### base name for output files
 
         a.logout()
+        self.internalsignals.status.emit((jobid, 'FINISHED'))
         
 
-    def cancel_job(self):
+    def cancel_job(self, job_id):
         host = self.connection_details['server_name']
         username = self.connection_details['username']
         port = self.connection_details['server_port']
@@ -620,8 +610,12 @@ module load AMDmodules foss/2019b
 
         a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
         a.login(passphrase=False)
-        a.job_cancel(self.job_id)
+        self.internalsignals.status.emit((job_id, "CANCELLING"))
+        a.job_cancel(job_id)
+        self.internalsignals.status.emit((job_id, "CANCELLED"))
         a.logout()
+
+
     
     def pytail(self, connection, logfile, start_at):
         
