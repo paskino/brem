@@ -277,8 +277,11 @@ class RemoteFileDialog(QtWidgets.QDialog):
             username = self.conn.username
             private_key = self.conn.private_key
             remote_os = self.conn.remote_os
-            worker = Worker(self.asyncStatRemotePath, path, i, self.tableWidget, 
-                                host, port, username, private_key, remote_os)
+            worker = Worker(self.asyncStatRemotePath, path=path, row=i, 
+                            table=self.tableWidget, host=host, port=port, 
+                            username=username, private_key=private_key, 
+                            remote_os=remote_os
+                            )
             self.threadpool.start(worker)
             
     def isFile(self, path):
@@ -320,10 +323,18 @@ class RemoteFileDialog(QtWidgets.QDialog):
             msg.exec()
             return
     
-    def asyncStatRemotePath(self, path, row, table, host, port, username, private_key, remote_os,
-                           progress_callback, message_callback):
+    def asyncStatRemotePath(self, **kwargs):#path, row, table, host, port, username, private_key, remote_os):
         '''asynchronously stat remote files for their type and adds info to the tablewidget'''
         # TODO logfile should be created and deleted
+        path = kwargs.get('path')
+        row = kwargs.get('row')
+        table = kwargs.get('table')
+        host = kwargs.get('host')
+        port = kwargs.get('port')
+        username = kwargs.get('username')
+        private_key = kwargs.get('private_key')
+        remote_os = kwargs.get('remote_os')
+        
         logfile = 'logfile.log'
         conn = drx.DVCRem(logfile=logfile, 
                           port=port, host=host, username=username, 
