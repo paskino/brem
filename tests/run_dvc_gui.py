@@ -120,8 +120,9 @@ class MainUI(QtWidgets.QMainWindow):
 
             # self.threadpool.start(self.dvcWorker)
 
-            self.run_control = RemoteRunControl(parent=self, 
+            self.run_control = DVCRemoteRunControl(parent=self, 
                 connection_details=self.connection_details, 
+                reference_filename=None, correlate_filename=None,
                 dvclog_filename=logfile)
             self.run_control.signals.status.connect(self.updateStatusBar)
             self.run_control.signals.finished.connect(self.processFinished)
@@ -274,7 +275,7 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
         # check if the job had been cancelled
         run_control = self.parent_app.run_control
         selected_job = self.widgets['job_selector'].currentText()
-        status = run_control.jobs[selected_job]
+        status = run_control.get_job_status(selected_job)
         self.widgets['formWidget'].widgets['status_field'].setText(status)
 
     def cancel_job(self):
@@ -320,14 +321,8 @@ class RemoteRunControlSignals(QtCore.QObject):
     job_id = QtCore.Signal(int)
 
 class RemoteRunControl(object):
-    def __init__(self, parent=None, connection_details=None, 
-                 reference_filename=None, correlate_filename=None,
-                 dvclog_filename=None,
-                 dev_config=None):
+    def __init__(self, connection_details=None):
         self.connection_details = connection_details
-        self.reference_fname    = reference_filename
-        self.correlate_fname    = correlate_filename
-        self.dvclog_fname       = dvclog_filename
         self.conn                = None
         self._jobid              = None
         self._job_status         = None
@@ -338,7 +333,8 @@ class RemoteRunControl(object):
         self.internalsignals.status.connect(self.set_job_status)
         
         self.threadpool = QtCore.QThreadPool()
-        self.dvcWorker = None
+        self._Worker = None
+        
     
     def set_job_id(self, value):
         self.job_id = value
@@ -348,7 +344,16 @@ class RemoteRunControl(object):
     def set_job_status(self, value):
         self.job_status = value[1]
         self.jobs[value[0]] = value[1]
+    def get_job_status(self, jobid):
+        try:
+            return self.jobs[jobid]
+        except KeyError as ke:
+            return 'Job not found.'
 
+    @property
+    def Worker(self):
+        return self._Worker
+    
     def create_job(self, fn, **kwargs):
         '''Creates a job to run function fn'''
         if not self.check_configuration():
@@ -359,24 +364,21 @@ class RemoteRunControl(object):
         kwargs['port']        = self.connection_details['server_port']
         kwargs['host']        = self.connection_details['server_name']
         kwargs['private_key'] = self.connection_details['private_key']
-        kwargs['logfile']     = self.dvclog_fname
-        
-        self.dvcWorker = Worker(fn, **kwargs)
+        self._Worker_kwargs = kwargs
+        self._Worker = Worker(fn, **kwargs)
                 
         
         # other signal/slots should be connected from outside
     
     @property
     def signals(self):
-        if self.dvcWorker is not None:
-            return self.dvcWorker.signals
+        if self.Worker is not None:
+            return self.Worker.signals
         else:
-            # try to create a worker
-            self.create_job(self.run_dvc_worker, update_delay=10)
-            return self.dvcWorker.signals
-
+            raise ValueError('Worker function is not defined')
+            # return self.Worker.signals
     def run_job(self):
-        self.threadpool.start(self.dvcWorker)
+        self.threadpool.start(self.Worker)
         
     @property
     def job_id(self):
@@ -474,6 +476,23 @@ if __name__ == '__main__':
         return stdout
     
 
+class DVCRemoteRunControl(RemoteRunControl):
+    def __init__(self, parent=None, connection_details=None, 
+                 reference_filename=None, correlate_filename=None,
+                 dvclog_filename=None,
+                 dev_config=None):
+
+        super(DVCRemoteRunControl, self).__init__(connection_details=connection_details)
+        self.reference_fname    = reference_filename
+        self.correlate_fname    = correlate_filename
+        self.dvclog_fname       = dvclog_filename
+        
+        # try to create a worker
+        self.create_job(self.run_worker, 
+            reference_fname=self.reference_fname, 
+            correlate_fname=self.correlate_fname, 
+            update_delay=10, logfile=self.dvclog_fname)
+
     # Not required for base class
     @property
     def reference_fname(self):
@@ -503,7 +522,7 @@ if __name__ == '__main__':
             
     
     # @pysnooper.snoop()
-    def run_dvc_worker(self, **kwargs):
+    def run_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
         host         = kwargs.get('host', None)
         username     = kwargs.get('username', None)
@@ -515,6 +534,9 @@ if __name__ == '__main__':
         message_callback  = kwargs.get('message_callback', None)
         progress_callback = kwargs.get('progress_callback', None)
         status_callback   = kwargs.get('status_callback', None)
+        
+        reference_fname   = kwargs.get('reference_fname', None)
+        correlate_fname   = kwargs.get('correlate_fname', None)
         
         
         from time import sleep
