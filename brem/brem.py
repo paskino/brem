@@ -305,7 +305,7 @@ class RemoteRunControl(object):
 
         a = brem.BasicRemoteExecutionManager( host=host, 
                                               username=username,
-                                              port=22,
+                                              port=port,
                                               private_key=private_key)
         a.login(passphrase=False)
         self.internalsignals.status.emit((job_id, "CANCELLING"))
