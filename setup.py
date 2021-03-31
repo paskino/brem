@@ -33,7 +33,7 @@ setup(name=name,
       long_description = long_description,
       author = 'Alin M Elena, Edoardo Pasca',
       author_email = 'alin-marin.elena@stfc.ac.uk, edoardo.pasca@stfc.ac.uk',
-      url = '',
+      url = 'http://github.com/vais-ral/brem',
       packages = ['brem', 'brem.ui'],
       license = 'BSD-3',
       install_requires=install_requires,
@@ -48,5 +48,7 @@ setup(name=name,
         'build_sphinx': {
             'project': ('setup.py', name),
             'version': ('setup.py', version),
-            'source_dir': ('setup.py', 'doc')}},
+            'source_dir': ('setup.py', 'doc')
+            }
+        },
       )

@@ -10,7 +10,7 @@ from brem.ui import RemoteFileDialog
 from brem.ui import RemoteServerSettingDialog
 from eqt.threading import Worker
 from eqt.ui import FormDialog, UIFormFactory
-import pysnooper
+# import pysnooper
 
 class MainUI(QtWidgets.QMainWindow):
 
