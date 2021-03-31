@@ -116,8 +116,11 @@ class DVCRem:
 
         return os.path.expanduser("~")
 
-    def get_file(self,filename):
-        self.sftp.get(filename, filename)
+    def get_file(self,filename, localdir=None):
+        if localdir is None:
+            self.sftp.get(filename, filename)
+        else:
+            self.sftp.get(filename, os.path.join(os.path.abspath(localdir), filename))
 
     def remove_file(self,filename):
         self.sftp.remove(filename)
