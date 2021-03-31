@@ -29,6 +29,8 @@ __version__ = '0.0.1'
 
 try:
     from .brem import BasicRemoteExecutionManager
+    from .brem import RemoteRunControl
+    from .brem import RemoteRunControlSignals
     __version__ = BasicRemoteExecutionManager.__version__
 
 except ImportError:
