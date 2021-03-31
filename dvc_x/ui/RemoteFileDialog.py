@@ -259,7 +259,10 @@ class RemoteFileDialog(QtWidgets.QDialog):
         self.tableWidget.setColumnCount(len(data[0]))
         for i, v in enumerate(data):
             for j, w in enumerate(v):
-                self.tableWidget.setItem(i, j, QtWidgets.QTableWidgetItem(str(w)))
+                item = QtWidgets.QTableWidgetItem(str(w))
+                if j == 1:
+                    item.setToolTip(str(w))
+                self.tableWidget.setItem(i, j, item)
                 
         self.tableWidget.setHorizontalHeaderLabels(['Type', 'Name'])
         
