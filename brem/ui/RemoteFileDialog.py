@@ -6,7 +6,7 @@ from PySide2.QtGui import QRegExpValidator
 from PySide2.QtCore import QRegExp
 import glob
 from functools import partial
-import dvc_x as drx
+import brem
 import stat
 from eqt.threading import Worker
 
@@ -111,7 +111,11 @@ class RemoteFileDialog(QtWidgets.QDialog):
     def setupConnection(self, logfile=None, port=None, host=None, \
             username=None, private_key=None, remote_os=None):
         
-        a=drx.DVCRem(logfile=logfile, port=port, host=host, username=username, private_key=private_key)
+        a = brem.RemoteExecutionManager(logfile=logfile, 
+                                        port=port, 
+                                        host=host, 
+                                        username=username, 
+                                        private_key=private_key)
         global dpath 
         dpath = posixpath 
         if remote_os == 'Windows':
@@ -339,9 +343,11 @@ class RemoteFileDialog(QtWidgets.QDialog):
         remote_os = kwargs.get('remote_os')
         
         logfile = 'logfile.log'
-        conn = drx.DVCRem(logfile=logfile, 
-                          port=port, host=host, username=username, 
-                          private_key=private_key)
+        conn = brem.RemoteExecutionManager(logfile=logfile,
+                                           port=port, 
+                                           host=host, 
+                                           username=username,
+                                           private_key=private_key)
         error = None
         try:
             conn.login(passphrase=False)

@@ -3,15 +3,15 @@
 from setuptools import setup
 from sphinx.setup_command import BuildDoc
 import re
+import os
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
-with open('dvc_x/__init__.py') as fd:
+with open('brem/__init__.py') as fd:
     version = re.search("__version__ = '(.*)'", fd.read()).group(1)
 
 cmdclass = {'build_sphinx': BuildDoc}
-
 
 install_requires = [
     'paramiko>=2.7.2',
@@ -21,17 +21,20 @@ install_requires = [
     'sphinx',
     'eqt'
 ]
+# if it is a conda build requirements are going to be satisfied by conda
+if os.environ.get('CONDA_BUILD', 0) == 1:
+    install_requires = []
 
-name = "dvc_x"
+name = "brem"
 
-setup(name='dvc_x',
+setup(name=name,
       version = version,
-      description = 'simple remote execution for dvc',
+      description = 'Basic Remote Execution Manager',
       long_description = long_description,
       author = 'Alin M Elena, Edoardo Pasca',
       author_email = 'alin-marin.elena@stfc.ac.uk, edoardo.pasca@stfc.ac.uk',
       url = '',
-      packages = ['dvc_x', 'dvc_x.ui'],
+      packages = ['brem', 'brem.ui'],
       license = 'BSD-3',
       install_requires=install_requires,
       classifiers = [

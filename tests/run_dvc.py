@@ -1,10 +1,10 @@
 
-import dvc_x as drx
+import brem
 
 from time import sleep
 #a=drx.DVCRem(private_key="/home/drFaustroll/.ssh/id_routers")
 
-a=drx.DVCRem(host="scarf.rl.ac.uk",username="scarf595",port=22,private_key="C:/Apps/cygwin64/home/ofn77899/.ssh/id_rsa")
+a = brem.BasicRemoteExecutionManager(host="scarf.rl.ac.uk",username="scarf595",port=22,private_key="C:/Apps/cygwin64/home/ofn77899/.ssh/id_rsa")
 
 a.login(passphrase=False)
 

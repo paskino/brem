@@ -2,7 +2,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from eqt.ui.UIFormWidget import UIFormFactory
 import os
 import configparser
-import dvc_x as drx
+import brem
 from eqt.threading.QtThreading import Worker, WorkerSignals, ErrorObserver
 
 
@@ -421,8 +421,11 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
 
     def authorize_key_worker(self, host, username, port, 
                              progress_callback, message_callback):
-        a=drx.DVCRem(logfile='generatekey.log', port=port, 
-                         host=host, username=username, private_key=None)
+        a = brem.RemoteExecutionManager( logfile='generatekey.log', 
+                                         port=port, 
+                                         host=host, 
+                                         username=username, 
+                                         private_key=None)
         
         a.login_pw(self.formWidget.widgets['server_password_field'].text())
         message_callback.emit("Generating Key...")

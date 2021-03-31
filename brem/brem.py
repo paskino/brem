@@ -4,8 +4,8 @@ from getpass import getpass
 
 remotepath = os.path
 
-class DVCRem:
-    """ Main class of a dvcrem"""
+class BasicRemoteExecutionManager(object):
+    """ Main class of a brem"""
     __version__ = "0.0.1"  #
 
     def __init__(self,logfile=None, port=None, host=None,username=None,\
@@ -195,7 +195,7 @@ class DVCRem:
 
 def main():
     """ Run the main program """
-    t=DVCRem()
+    t=BasicRemoteExecutionManager()
     print(t.info())
 
 if __name__ == "__main__":

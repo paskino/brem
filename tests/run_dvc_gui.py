@@ -5,9 +5,9 @@ import glob, sys, os
 from functools import partial
 import posixpath, ntpath
 import posixpath as dpath
-from dvc_x.ui import RemoteFileDialog
-from dvc_x.ui import RemoteServerSettingDialog
-import dvc_x as drx
+import brem
+from brem.ui import RemoteFileDialog
+from brem.ui import RemoteServerSettingDialog
 from eqt.threading import Worker
 from eqt.ui import FormDialog, UIFormFactory
 import pysnooper
@@ -456,7 +456,10 @@ class RemoteRunControl(object):
         
         from time import sleep
         
-        a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
+        a = brem.BasicRemoteExecutionManager( host=host,
+                                              username=username,
+                                              port=22,
+                                              private_key=private_key)
 
         a.login(passphrase=False)
 
@@ -608,7 +611,10 @@ module load AMDmodules foss/2019b
         port = self.connection_details['server_port']
         private_key = self.connection_details['private_key']
 
-        a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
+        a = brem.BasicRemoteExecutionManager( host=host, 
+                                              username=username,
+                                              port=22,
+                                              private_key=private_key)
         a.login(passphrase=False)
         self.internalsignals.status.emit((job_id, "CANCELLING"))
         a.job_cancel(job_id)

@@ -2,7 +2,7 @@
 
 typical usage
 
->>>   from dvc_x import DVCRem
+>>>   from brem import BasicRemoteExecutionManager
 
 """
 
@@ -28,8 +28,8 @@ __all__ = [basename(f)[:-3] for f in modules if isfile(f)
 __version__ = '0.0.1'
 
 try:
-    from .dvc_x import DVCRem
-    __version__ = DVCRem.__version__
+    from .brem import BasicRemoteExecutionManager
+    __version__ = BasicRemoteExecutionManager.__version__
 
 except ImportError:
-    raise ImportError('error importing dvc_x')
+    raise ImportError('error importing brem')
