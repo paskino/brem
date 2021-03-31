@@ -3,7 +3,6 @@ import posixpath, ntpath, os
 from getpass import getpass
 from PySide2 import QtCore
 from eqt.threading import Worker
-import posixpath as dpath
 
 remotepath = os.path
 
@@ -341,7 +340,7 @@ if __name__ == '__main__':
 
         with open("pytail.py", 'w') as pytail:
             print (tail, file=pytail)
-        connection.put_file("pytail.py", dpath.join(remotehomedir, 'pytail.py'))
+        connection.put_file("pytail.py", remotepath.join(remotehomedir, 'pytail.py'))
 
         stdout, stderr = connection.run('python pytail.py {} {}'.format(logfile, start_at))
         
