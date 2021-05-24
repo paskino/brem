@@ -122,7 +122,7 @@ class MainUI(QtWidgets.QMainWindow):
 
             # self.threadpool.start(self.dvcWorker)
 
-            self.run_control = DVCRemoteRunControl(parent=self, 
+            self.run_control = DVCRemoteRunControl( 
                 connection_details=self.connection_details, 
                 reference_filename=None, correlate_filename=None,
                 dvclog_filename=logfile)
@@ -338,7 +338,7 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
     
 
 class DVCRemoteRunControl(RemoteRunControl):
-    def __init__(self, parent=None, connection_details=None, 
+    def __init__(self, connection_details=None, 
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
                  dev_config=None):

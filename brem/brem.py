@@ -200,6 +200,12 @@ class RemoteRunControlSignals(QtCore.QObject):
     job_id = QtCore.Signal(int)
 
 class RemoteRunControl(object):
+    '''RemoteRunControl base class to handle asynchronous interaction with a remote running job
+
+    :param connection_details: required parameters passed in a dictionary server_name, server_port, username, private_key
+    :param type: dict 
+    '''
+
     def __init__(self, connection_details=None):
         self.connection_details = connection_details
         self.conn                = None
