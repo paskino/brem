@@ -8,7 +8,7 @@ remotepath = os.path
 
 class BasicRemoteExecutionManager(object):
     """ Main class of a brem"""
-    __version__ = "0.0.1"  #
+    
 
     def __init__(self,logfile=None, port=None, host=None,username=None,\
         private_key=None, remote_os=None):

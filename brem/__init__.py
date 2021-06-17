@@ -25,13 +25,13 @@ modules = glob.glob(join(dirname(__file__), "*.py"))
 __all__ = [basename(f)[:-3] for f in modules if isfile(f)
            and not f.endswith('__init__.py')]
 
-__version__ = '0.0.1'
+__version__ = '1.0.0'
 
 try:
     from .brem import BasicRemoteExecutionManager
     from .brem import RemoteRunControl
     from .brem import RemoteRunControlSignals
-    __version__ = BasicRemoteExecutionManager.__version__
+    
 
 except ImportError:
     raise ImportError('error importing brem')
