@@ -309,7 +309,7 @@ class RemoteRunControl(object):
         port = self.connection_details['server_port']
         private_key = self.connection_details['private_key']
 
-        a = brem.BasicRemoteExecutionManager( host=host, 
+        a = BasicRemoteExecutionManager( host=host, 
                                               username=username,
                                               port=port,
                                               private_key=private_key)

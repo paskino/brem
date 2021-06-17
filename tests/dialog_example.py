@@ -3,8 +3,8 @@ from PySide2.QtGui import QRegExpValidator
 from PySide2.QtCore import QRegExp
 import glob, sys, os
 from functools import partial
-from dvc_x.ui import RemoteFileDialog
-from dvc_x.ui import RemoteServerSettingDialog, GenerateKeygenDialog
+from brem.ui import RemoteFileDialog
+from brem.ui import RemoteServerSettingDialog, GenerateKeygenDialog
 
 
 class MainUI(QtWidgets.QMainWindow):
