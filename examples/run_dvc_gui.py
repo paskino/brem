@@ -5,12 +5,14 @@ import glob, sys, os
 from functools import partial
 import posixpath, ntpath
 import posixpath as dpath
-from dvc_x.ui import RemoteFileDialog
-from dvc_x.ui import RemoteServerSettingDialog
-import dvc_x as drx
+import brem
+from brem.ui import RemoteFileDialog
+from brem.ui import RemoteServerSettingDialog
+from brem import RemoteRunControl
 from eqt.threading import Worker
 from eqt.ui import FormDialog, UIFormFactory
-import pysnooper
+# import pysnooper
+
 
 class MainUI(QtWidgets.QMainWindow):
 
@@ -120,9 +122,10 @@ class MainUI(QtWidgets.QMainWindow):
 
             # self.threadpool.start(self.dvcWorker)
 
-            self.run_control = RemoteRunControl(parent=self, connection_details=self.connection_details, 
-                                                dvclog_filename=logfile)
-            # self.run_control.create_job()
+            self.run_control = DVCRemoteRunControl( 
+                connection_details=self.connection_details, 
+                reference_filename=None, correlate_filename=None,
+                dvclog_filename=logfile)
             self.run_control.signals.status.connect(self.updateStatusBar)
             self.run_control.signals.finished.connect(self.processFinished)
             self.run_control.run_job()
@@ -274,7 +277,7 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
         # check if the job had been cancelled
         run_control = self.parent_app.run_control
         selected_job = self.widgets['job_selector'].currentText()
-        status = run_control.jobs[selected_job]
+        status = run_control.get_job_status(selected_job)
         self.widgets['formWidget'].widgets['status_field'].setText(status)
 
     def cancel_job(self):
@@ -309,89 +312,49 @@ class DVCSLURMProgressDialog(QtWidgets.QDialog):
         #self.
         jobid = self.widgets['job_selector'].currentText()
 
-    
+
+# if __name__ == '__main__':
+#     stdout = pytail(sys.argv[1],int(sys.argv[2]))
+#     msg = functools.reduce(lambda x,y: x+y, stdout, '')
+#     print (msg)
+# '''             
+#         remotehomedir = connection.remote_home_dir
+
+#         with open("pytail.py", 'w') as pytail:
+#             print (tail, file=pytail)
+#         connection.put_file("pytail.py", dpath.join(remotehomedir, 'pytail.py'))
+
+#         stdout, stderr = connection.run('python pytail.py {} {}'.format(logfile, start_at))
+        
+#         # remove pytail.py from the server.
+#         # connection.remove_file(dpath.join(connection.remote_home_dir, 'pytail.py'))
+        
+#         # print ("logfile", logfile)
+#         # print ("stdout", stdout.decode('utf-8'))
+#         # print ("stdout", stderr)
+
+#         # expand tabs and newlines
+#         return stdout
     
 
-    
-import functools
-
-class RemoteRunControlSignals(QtCore.QObject):
-    status = QtCore.Signal(tuple)
-    job_id = QtCore.Signal(int)
-
-class RemoteRunControl(object):
-    def __init__(self, parent=None, connection_details=None, 
+class DVCRemoteRunControl(RemoteRunControl):
+    def __init__(self, connection_details=None, 
                  reference_filename=None, correlate_filename=None,
                  dvclog_filename=None,
                  dev_config=None):
-        self.connection_details = connection_details
+
+        super(DVCRemoteRunControl, self).__init__(connection_details=connection_details)
         self.reference_fname    = reference_filename
         self.correlate_fname    = correlate_filename
         self.dvclog_fname       = dvclog_filename
-        self.conn                = None
-        self._jobid              = None
-        self._job_status         = None
-        self.jobs                = {}
         
-        self.internalsignals = RemoteRunControlSignals()
-        self.internalsignals.job_id.connect(self.set_job_id)
-        self.internalsignals.status.connect(self.set_job_status)
-        
-        self.threadpool = QtCore.QThreadPool()
-        self.dvcWorker = None
-    
-    def set_job_id(self, value):
-        self.job_id = value
-        self.jobs[value] = None
-        # attach finished signal
-        # self.dvcWorker.signals.finished.connect(lambda: self.job_finished())
-    def set_job_status(self, value):
-        self.job_status = value[1]
-        self.jobs[value[0]] = value[1]
+        # try to create a worker
+        self.create_job(self.run_worker, 
+            reference_fname=self.reference_fname, 
+            correlate_fname=self.correlate_fname, 
+            update_delay=10, logfile=self.dvclog_fname)
 
-    def create_job(self):
-        if not self.check_configuration():
-            raise ValueError('Connection details are not specified or complete. Got', \
-                        self.connection_details)
-        username = self.connection_details['username']
-        port = self.connection_details['server_port']
-        host = self.connection_details['server_name']
-        private_key = self.connection_details['private_key']
-        self.dvcWorker = Worker(self.run_dvc_worker, 
-                host=host, username=username, port=port, 
-                private_key=private_key, logfile=self.dvclog_fname, 
-                update_delay=10)
-        
-        # other signal/slots should be connected from outside
-    
-    @property
-    def signals(self):
-        if self.dvcWorker is not None:
-            return self.dvcWorker.signals
-        else:
-            # try to create a worker
-            self.create_job()
-            return self.dvcWorker.signals
-
-    def run_job(self):
-        self.threadpool.start(self.dvcWorker)
-        
-    @property
-    def job_id(self):
-        return self._jobid
-    @job_id.setter
-    def job_id(self, value):
-        print ("setting job_id", value)
-        self._jobid = value
-    @property
-    def connection_details(self):
-        return self._connection_details
-    @connection_details.setter
-    def connection_details(self, value):
-        if value is not None:
-            self._connection_details = dict(value)
-        else:
-            self._connection_details = None
+    # Not required for base class
     @property
     def reference_fname(self):
         return self._reference_fname
@@ -416,31 +379,11 @@ class RemoteRunControl(object):
         '''setter for dvclog file name.'''
         self._dvclog_fname = value
         
-    @property
-    def job_status(self):
-        return self._job_status
-    @job_status.setter
-    def job_status(self, value):
-        print("setting job_status", value)
-        if self.job_id is not None:
-            self._job_status = value
     
-    
-    def check_configuration(self):
-        def f (a,x,y):
-            return x in a and y
-        ff = functools.partial(f, self.connection_details.keys())
-        # return functools.reduce(ff, ['username','server_port', 'server_name','private_key'], True)
-        required = ['username','server_port', 'server_name','private_key']
-        available = self.connection_details.keys()
-        ret = True
-        for x in required:
-            ret = ret and (x in available)
-        return ret
             
     
     # @pysnooper.snoop()
-    def run_dvc_worker(self, **kwargs):
+    def run_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
         host         = kwargs.get('host', None)
         username     = kwargs.get('username', None)
@@ -453,10 +396,16 @@ class RemoteRunControl(object):
         progress_callback = kwargs.get('progress_callback', None)
         status_callback   = kwargs.get('status_callback', None)
         
+        reference_fname   = kwargs.get('reference_fname', None)
+        correlate_fname   = kwargs.get('correlate_fname', None)
+        
         
         from time import sleep
         
-        a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
+        a = brem.BasicRemoteExecutionManager( host=host,
+                                              username=username,
+                                              port=22,
+                                              private_key=private_key)
 
         a.login(passphrase=False)
 
@@ -602,61 +551,6 @@ module load AMDmodules foss/2019b
         self.internalsignals.status.emit((jobid, 'FINISHED'))
         
 
-    def cancel_job(self, job_id):
-        host = self.connection_details['server_name']
-        username = self.connection_details['username']
-        port = self.connection_details['server_port']
-        private_key = self.connection_details['private_key']
-
-        a=drx.DVCRem(host=host,username=username,port=22,private_key=private_key)
-        a.login(passphrase=False)
-        self.internalsignals.status.emit((job_id, "CANCELLING"))
-        a.job_cancel(job_id)
-        self.internalsignals.status.emit((job_id, "CANCELLED"))
-        a.logout()
-
-
-    
-    def pytail(self, connection, logfile, start_at):
-        
-        tail = '''
-import os, sys, functools
-def pytail(filename, start_at):
-    with open(filename, 'r') as f:
-        # skip to line start_at
-        ret = []
-        i = 0
-        while True:
-            line = f.readline()
-            if line == '':
-                break
-            if i > start_at:
-                ret.append(line)
-            i += 1
-    return ret
-
-if __name__ == '__main__':
-    stdout = pytail(sys.argv[1],int(sys.argv[2]))
-    msg = functools.reduce(lambda x,y: x+y, stdout, '')
-    print (msg)
-'''             
-        remotehomedir = connection.remote_home_dir
-
-        with open("pytail.py", 'w') as pytail:
-            print (tail, file=pytail)
-        connection.put_file("pytail.py", dpath.join(remotehomedir, 'pytail.py'))
-
-        stdout, stderr = connection.run('python pytail.py {} {}'.format(logfile, start_at))
-        
-        # remove pytail.py from the server.
-        # connection.remove_file(dpath.join(connection.remote_home_dir, 'pytail.py'))
-        
-        # print ("logfile", logfile)
-        # print ("stdout", stdout.decode('utf-8'))
-        # print ("stdout", stderr)
-
-        # expand tabs and newlines
-        return stdout
     
 
 

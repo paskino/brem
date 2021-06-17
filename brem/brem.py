@@ -1,12 +1,14 @@
 import paramiko as ssh
 import posixpath, ntpath, os
 from getpass import getpass
+from PySide2 import QtCore
+from eqt.threading import Worker
 
 remotepath = os.path
 
-class DVCRem:
-    """ Main class of a dvcrem"""
-    __version__ = "0.0.1"  #
+class BasicRemoteExecutionManager(object):
+    """ Main class of a brem"""
+    
 
     def __init__(self,logfile=None, port=None, host=None,username=None,\
         private_key=None, remote_os=None):
@@ -191,11 +193,177 @@ class DVCRem:
          stdout, stderr = self.run("scancel  {}".format(jid))
          return stdout
 
+import functools
 
+class RemoteRunControlSignals(QtCore.QObject):
+    status = QtCore.Signal(tuple)
+    job_id = QtCore.Signal(int)
+
+class RemoteRunControl(object):
+    '''RemoteRunControl base class to handle asynchronous interaction with a remote running job
+
+    :param connection_details: required parameters passed in a dictionary server_name, server_port, username, private_key
+    :param type: dict 
+    '''
+
+    def __init__(self, connection_details=None):
+        self.connection_details = connection_details
+        self.conn                = None
+        self._jobid              = None
+        self._job_status         = None
+        self.jobs                = {}
+        
+        self.internalsignals = RemoteRunControlSignals()
+        self.internalsignals.job_id.connect(self.set_job_id)
+        self.internalsignals.status.connect(self.set_job_status)
+        
+        self.threadpool = QtCore.QThreadPool()
+        self._Worker = None
+        
+    
+    def set_job_id(self, value):
+        self.job_id = value
+        self.jobs[value] = None
+        # attach finished signal
+        # self.dvcWorker.signals.finished.connect(lambda: self.job_finished())
+    def set_job_status(self, value):
+        self.job_status = value[1]
+        self.jobs[value[0]] = value[1]
+    def get_job_status(self, jobid):
+        try:
+            return self.jobs[jobid]
+        except KeyError as ke:
+            return 'Job not found.'
+
+    @property
+    def Worker(self):
+        return self._Worker
+    
+    def create_job(self, fn, **kwargs):
+        '''Creates a job to run function fn'''
+        if not self.check_configuration():
+            raise ValueError('Connection details are not specified or complete. Got', \
+                        self.connection_details)
+
+        kwargs['username']    = self.connection_details['username']
+        kwargs['port']        = self.connection_details['server_port']
+        kwargs['host']        = self.connection_details['server_name']
+        kwargs['private_key'] = self.connection_details['private_key']
+        self._Worker_kwargs = kwargs
+        self._Worker = Worker(fn, **kwargs)
+                
+        
+        # other signal/slots should be connected from outside
+    
+    @property
+    def signals(self):
+        if self.Worker is not None:
+            return self.Worker.signals
+        else:
+            raise ValueError('Worker function is not defined')
+            # return self.Worker.signals
+    def run_job(self):
+        self.threadpool.start(self.Worker)
+        
+    @property
+    def job_id(self):
+        return self._jobid
+    @job_id.setter
+    def job_id(self, value):
+        print ("setting job_id", value)
+        self._jobid = value
+    @property
+    def connection_details(self):
+        return self._connection_details
+    @connection_details.setter
+    def connection_details(self, value):
+        if value is not None:
+            self._connection_details = dict(value)
+        else:
+            self._connection_details = None
+    @property
+    def job_status(self):
+        return self._job_status
+    @job_status.setter
+    def job_status(self, value):
+        print("setting job_status", value)
+        if self.job_id is not None:
+            self._job_status = value
+    
+    
+    def check_configuration(self):
+        def f (a,x,y):
+            return x in a and y
+        ff = functools.partial(f, self.connection_details.keys())
+        # return functools.reduce(ff, ['username','server_port', 'server_name','private_key'], True)
+        required = ['username','server_port', 'server_name','private_key']
+        available = self.connection_details.keys()
+        ret = True
+        for x in required:
+            ret = ret and (x in available)
+        return ret
+
+    def cancel_job(self, job_id):
+        host = self.connection_details['server_name']
+        username = self.connection_details['username']
+        port = self.connection_details['server_port']
+        private_key = self.connection_details['private_key']
+
+        a = BasicRemoteExecutionManager( host=host, 
+                                              username=username,
+                                              port=port,
+                                              private_key=private_key)
+        a.login(passphrase=False)
+        self.internalsignals.status.emit((job_id, "CANCELLING"))
+        a.job_cancel(job_id)
+        self.internalsignals.status.emit((job_id, "CANCELLED"))
+        a.logout()
+    
+    def pytail(self, connection, logfile, start_at):
+        
+        tail = '''
+import os, sys, functools
+def pytail(filename, start_at):
+    with open(filename, 'r') as f:
+        # skip to line start_at
+        ret = []
+        i = 0
+        while True:
+            line = f.readline()
+            if line == '':
+                break
+            if i > start_at:
+                ret.append(line)
+            i += 1
+    return ret
+
+if __name__ == '__main__':
+    stdout = pytail(sys.argv[1],int(sys.argv[2]))
+    msg = functools.reduce(lambda x,y: x+y, stdout, '')
+    print (msg)
+'''             
+        remotehomedir = connection.remote_home_dir
+
+        with open("pytail.py", 'w') as pytail:
+            print (tail, file=pytail)
+        connection.put_file("pytail.py", remotepath.join(remotehomedir, 'pytail.py'))
+
+        stdout, stderr = connection.run('python pytail.py {} {}'.format(logfile, start_at))
+        
+        # remove pytail.py from the server.
+        # connection.remove_file(dpath.join(connection.remote_home_dir, 'pytail.py'))
+        
+        # print ("logfile", logfile)
+        # print ("stdout", stdout.decode('utf-8'))
+        # print ("stdout", stderr)
+
+        # expand tabs and newlines
+        return stdout
+    
 
 def main():
     """ Run the main program """
-    t=DVCRem()
+    t=BasicRemoteExecutionManager()
     print(t.info())
 
 if __name__ == "__main__":
