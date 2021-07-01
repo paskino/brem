@@ -351,7 +351,7 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         qwidget.setClearButtonEnabled(True)
         qwidget.setEchoMode(QtWidgets.QLineEdit.Password)
         # finally add to the form widget
-        fw.addWidget('server_password', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'server_password')
 
         # insert a QLabel at the top to describe what's happening
         self.infolabel = QtWidgets.QLabel()
@@ -420,8 +420,8 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         self.infolabel.setText(text)
 
     def authorize_key_worker(self, host, username, port, 
-                             progress_callback, message_callback):
-        a = brem.RemoteExecutionManager( logfile='generatekey.log', 
+                             progress_callback, message_callback, status_callback=None):
+        a = brem.BasicRemoteExecutionManager( logfile='generatekey.log', 
                                          port=port, 
                                          host=host, 
                                          username=username, 
