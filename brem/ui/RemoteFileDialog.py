@@ -111,7 +111,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
     def setupConnection(self, logfile=None, port=None, host=None, \
             username=None, private_key=None, remote_os=None):
         
-        a = brem.RemoteExecutionManager(logfile=logfile, 
+        a = brem.BasicRemoteExecutionManager(logfile=logfile, 
                                         port=port, 
                                         host=host, 
                                         username=username, 
@@ -343,7 +343,7 @@ class RemoteFileDialog(QtWidgets.QDialog):
         remote_os = kwargs.get('remote_os')
         
         logfile = 'logfile.log'
-        conn = brem.RemoteExecutionManager(logfile=logfile,
+        conn = brem.BasicRemoteExecutionManager(logfile=logfile,
                                            port=port, 
                                            host=host, 
                                            username=username,

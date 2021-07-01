@@ -351,7 +351,7 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         qwidget.setClearButtonEnabled(True)
         qwidget.setEchoMode(QtWidgets.QLineEdit.Password)
         # finally add to the form widget
-        fw.addWidget('server_password', qlabel, qwidget)
+        fw.addWidget(qwidget, qlabel, 'server_password')
 
         # insert a QLabel at the top to describe what's happening
         self.infolabel = QtWidgets.QLabel()
@@ -415,18 +415,20 @@ class GenerateKeygenDialog(QtWidgets.QDialog):
         if mask is not None:
             # self.formWidget.widgets['private_key_field'].setText(os.path.abspath(mask))
             self.key_file = mask
+
     def setInfo(self, text):
         '''Writes in the top QLabel information for the user'''
         self.infolabel.setText(text)
 
-    def authorize_key_worker(self, host, username, port, 
-                             progress_callback, message_callback):
-        a = brem.RemoteExecutionManager( logfile='generatekey.log', 
-                                         port=port, 
-                                         host=host, 
-                                         username=username, 
-                                         private_key=None)
-        
+    def authorize_key_worker(self, host, username, port, **kwargs):
+
+        message_callback = kwargs.get('message_callback')
+        a = brem.BasicRemoteExecutionManager(logfile='generatekey.log',
+                                             port=port,
+                                             host=host,
+                                             username=username,
+                                             private_key=None)
+
         a.login_pw(self.formWidget.widgets['server_password_field'].text())
         message_callback.emit("Generating Key...")
         a.generate_keys(filename=self.key_file)
