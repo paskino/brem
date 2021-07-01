@@ -3,6 +3,7 @@ import posixpath, ntpath, os
 from getpass import getpass
 from PySide2 import QtCore
 from eqt.threading import Worker
+from brem.version import version as brem_version
 
 remotepath = os.path
 
@@ -19,6 +20,8 @@ class BasicRemoteExecutionManager(object):
         self.username = username
         self.private_key = private_key
         self.remote_os = remote_os
+
+        self.__version__ = brem_version
 
         if private_key is not None:
             self.private_key = private_key

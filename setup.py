@@ -3,12 +3,11 @@
 from setuptools import setup
 import re
 import os
+import subprocess
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
-with open('brem/__init__.py') as fd:
-    version = re.search("__version__ = '(.*)'", fd.read()).group(1)
 
 install_requires = []
 with open('requirements.txt', 'r') as f:
@@ -19,6 +18,25 @@ with open('requirements.txt', 'r') as f:
         if not line.strip().startswith('#'):
             install_requires.append(line.strip())
         
+
+
+# with open('brem/__init__.py') as fd:
+#     version = re.search("__version__ = '(.*)'", fd.read()).group(1)
+
+version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
+
+
+if os.environ.get('CONDA_BUILD', 0) == 0:
+      cwd = os.getcwd()
+else:
+      cwd = os.path.join(os.environ.get('RECIPE_DIR'),'..')
+
+fname = os.path.join(cwd, 'brem', 'version.py')
+
+if os.path.exists(fname):
+    os.remove(fname)
+with open(fname, 'w') as f:
+    f.write('version = \'{}\''.format(version))
 
 # if it is a conda build requirements are going to be satisfied by conda
 if os.environ.get('CONDA_BUILD', 0) == 1:
