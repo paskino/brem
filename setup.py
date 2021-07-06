@@ -31,7 +31,7 @@ if isGitRepo:
         version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
     except CalledProcessError as err:
         print ("Got this error", err)
-        version = subprocess.check_output('git tag | xargs -I@ git log --format=format:"%at @%n" -1 @ | sort -V | awk \'{print $2}\' | tail -n 1 | tr -d \'/s/v//g\'')
+        version = subprocess.check_output('git tag | tail -n 1')
 else:
     version = '1.0.2'
 
