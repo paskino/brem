@@ -152,12 +152,18 @@ class BasicRemoteExecutionManager(object):
 
         with open(ff,'w', newline='\n') as f:
             print('''
-                    if [[ $(grep -c "$(cat mykey-rsa.pub)" ~/.ssh/authorized_keys) == 0 ]]; then
-                        cat {f} >> .ssh/authorized_keys
-                    else
-                       echo "key already present"
-                    fi
-                    '''.format(f=remotefile),file=f)
+if [ ! -d ~/.ssh ]; then
+    mkdir ~/.ssh
+fi
+if [ ! -f ~/.ssh/authorized_keys ]; then
+    touch .ssh/authorized_keys
+fi
+if [[ $(grep -c "$(cat mykey-rsa.pub)" ~/.ssh/authorized_keys) == 0 ]]; then
+    cat {f} >> .ssh/authorized_keys
+else
+    echo "key already present"
+fi
+                    '''.format(f=remotefile), file=f)
         self.put_file(ff)
         self.run("/bin/sh ./{}".format(ff))
         self.remove_file(ff)
