@@ -24,6 +24,8 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
+      - run: |
+          git describe
       - uses: actions/setup-python@v2
       - uses: casperdcl/deploy-pypi@v2.2.1
         with:
