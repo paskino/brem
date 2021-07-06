@@ -4,6 +4,7 @@ from setuptools import setup
 import re
 import os
 import subprocess
+from subprocess import CalledProcessError
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
