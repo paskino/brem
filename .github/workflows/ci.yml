@@ -24,8 +24,6 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-      - run: |
-          git describe
       - uses: actions/setup-python@v2
       - uses: casperdcl/deploy-pypi@v2
         with:
@@ -33,5 +31,3 @@ jobs:
           pip: wheel -w dist/ --no-deps .
           # only upload if a tag is pushed (otherwise just build & check)
           upload: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
-        - run: |
-          git describe
