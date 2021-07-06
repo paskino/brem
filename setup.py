@@ -22,11 +22,15 @@ with open('requirements.txt', 'r') as f:
 
 # with open('brem/__init__.py') as fd:
 #     version = re.search("__version__ = '(.*)'", fd.read()).group(1)
-print ("Current working directory", os.getcwd())
+
 isGitRepo = os.path.exists(os.path.join(os.getcwd(), '.git'))
-print ("This is a git repo directory", isGitRepo)
+print ("{} is a git repo directory {}".format(os.getcwd(), isGitRepo))
 if isGitRepo:
-    version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
+    try:
+        version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
+    except CalledProcessError as err:
+        print ("Got this error", err)
+        version = subprocess.check_output('git tag | xargs -I@ git log --format=format:"%at @%n" -1 @ | sort -V | awk \'{print $2}\' | tail -n 1 | tr -d \'/s/v//g\'')
 else:
     version = '1.0.2'
 
