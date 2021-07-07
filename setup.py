@@ -34,7 +34,7 @@ def version2pep440(version):
     if len(v) >= 2:
         v_pep440 = "{}.dev{}".format(v[0], v[1])
     else:
-        v_pep440 = "{}.dev{}".format(v[0])
+        v_pep440 = "{}".format(v)
 
     return v_pep440
 
