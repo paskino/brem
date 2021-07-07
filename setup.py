@@ -23,17 +23,18 @@ with open('requirements.txt', 'r') as f:
 
 # with open('brem/__init__.py') as fd:
 #     version = re.search("__version__ = '(.*)'", fd.read()).group(1)
+version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
 
-isGitRepo = os.path.exists(os.path.join(os.getcwd(), '.git'))
-print ("{} is a git repo directory {}".format(os.getcwd(), isGitRepo))
-if isGitRepo:
-    try:
-        version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
-    except CalledProcessError as err:
-        print ("Got this error", err)
-        version = '1.0.2'
-else:
-    version = '1.0.2'
+# isGitRepo = os.path.exists(os.path.join(os.getcwd(), '.git'))
+# print ("{} is a git repo directory {}".format(os.getcwd(), isGitRepo))
+# if isGitRepo:
+#     try:
+#         version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
+#     except CalledProcessError as err:
+#         print ("Got this error", err)
+#         version = '1.0.2'
+# else:
+#     version = '1.0.2'
 
 
 if os.environ.get('CONDA_BUILD', 0) == 0:
