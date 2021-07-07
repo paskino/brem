@@ -14,7 +14,7 @@ test:
   
   commands:
     - python -c "import os, glob; print ('TESTING IN THIS DIRECTORY' , os.getcwd()); print ([el for el in glob.glob(os.path.join(os.getcwd(), 'tests'))])"
-    - python -m unittest discover tests
+    - python -m unittest discover ../tests
 
 requirements:
   build:
