@@ -1,3 +1,6 @@
+##v1.x.x
+- Simplified GitHub actions
+
 ## v1.0.2
 - bugfix in BasicRemoteExecutionManager
 - use git tag for package version
