@@ -1,4 +1,4 @@
-##v1.x.x
+## v1.0.3
 - Simplified GitHub actions
 
 ## v1.0.2
