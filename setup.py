@@ -21,20 +21,26 @@ with open('requirements.txt', 'r') as f:
         
 
 
-# with open('brem/__init__.py') as fd:
-#     version = re.search("__version__ = '(.*)'", fd.read()).group(1)
-version = subprocess.check_output('git describe --tag', shell=True).decode("utf-8").rstrip()
+def version2pep440(version):
+    '''normalises the version from git describe to pep440
+    
+    https://www.python.org/dev/peps/pep-0440/#id29
+    '''
+    if version[0] == 'v':
+        version = version[1:]
 
-# isGitRepo = os.path.exists(os.path.join(os.getcwd(), '.git'))
-# print ("{} is a git repo directory {}".format(os.getcwd(), isGitRepo))
-# if isGitRepo:
-#     try:
-#         version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
-#     except CalledProcessError as err:
-#         print ("Got this error", err)
-#         version = '1.0.2'
-# else:
-#     version = '1.0.2'
+    v = version.split('-')
+
+    if len(v) >= 2:
+        v_pep440 = "{}.dev{}".format(v[0], v[1])
+    else:
+        v_pep440 = "{}.dev{}".format(v[0])
+
+    return v_pep440
+
+version = version2pep440(
+    subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
+)
 
 
 if os.environ.get('CONDA_BUILD', 0) == 0:
