@@ -1,5 +1,5 @@
 ## v1.0.3
-- Simplified GitHub actions
+- Fixed pypi publish GitHub Action
 
 ## v1.0.2
 - bugfix in BasicRemoteExecutionManager
