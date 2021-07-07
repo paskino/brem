@@ -23,7 +23,7 @@ with open('requirements.txt', 'r') as f:
 
 # with open('brem/__init__.py') as fd:
 #     version = re.search("__version__ = '(.*)'", fd.read()).group(1)
-version = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
+version = subprocess.check_output('git rev-parse HEAD', shell=True).decode("utf-8").rstrip()
 
 # isGitRepo = os.path.exists(os.path.join(os.getcwd(), '.git'))
 # print ("{} is a git repo directory {}".format(os.getcwd(), isGitRepo))
