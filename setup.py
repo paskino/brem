@@ -29,12 +29,11 @@ def version2pep440(version):
     if version[0] == 'v':
         version = version[1:]
 
-    v = version.split('-')
-
-    if len(v) >= 2:
+    if 'u' in version:
+        v = version.split('-')
         v_pep440 = "{}.dev{}".format(v[0], v[1])
     else:
-        v_pep440 = "{}".format(v)
+        v_pep440 = version
 
     return v_pep440
 
