@@ -11,10 +11,13 @@ build:
   number: {{ GIT_DESCRIBE_NUMBER }}
   
 test:
+
+  source_files:
+    - ./tests
   
   commands:
-    - python -c "import os, glob; print ('TESTING IN THIS DIRECTORY' , os.getcwd()); print(glob.glob('*/'))"
-    # - python -m unittest discover ../tests
+    - python -c "import os, glob; print ('TESTING IN THIS DIRECTORY' , os.getcwd()); print ([el for el in glob.glob('*')])"
+    - python -m unittest discover tests
 
 requirements:
   build:
