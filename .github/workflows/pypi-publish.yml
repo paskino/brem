@@ -22,7 +22,7 @@ jobs:
         python-version: '3.x'
     - name: Forces retrieval of annotated tags
       run: |
-          git fetch --tags --force
+        git fetch --tags --force
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
