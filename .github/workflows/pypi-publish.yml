@@ -18,9 +18,9 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: '3.x'
-    - name: Get all tag info
+    - name: Forces retrieval of annotated tags
       run: |
-        git push --delete origin tagname
+          git fetch --tags --force
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
