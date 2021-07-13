@@ -30,6 +30,6 @@ requirements:
     - eqt
 
 about:
-  home: https://github.com/paskino/qt-elements
+  home: https://github.com/paskino/brem
   license: Apache 2.0
-  summary: A number of templates and tools to develop Qt GUI's with Python effectively.
+  summary: Basic Remote Execution Manager (brem) is a simple Python package that enables the execution on remote machines connected via SSH.
