@@ -21,6 +21,6 @@ jobs:
         subDir: 'conda'
         channels: 'conda-forge -c paskino'
         AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
-        test_all: False
+        test_all: True
         publish: True
         #publish: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
