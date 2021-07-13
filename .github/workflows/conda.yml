@@ -4,7 +4,7 @@ on:
   release:
     types: [published]
   push:
-    branches: [ main ]
+    branches: [ conda-fix ]
     tags:
       - '**'
   pull_request:
@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: publish-to-conda
-      uses: paskino/conda-package-publish-action@master
+      uses: paskino/conda-package-publish-action@fix-test_package
       with:
         subDir: 'conda'
         channels: 'conda-forge -c paskino'
