@@ -14,4 +14,4 @@ This github action builds the pypi package, by using the [deploy-pypi action](ht
 
 When pushing to main it is built and checked.
 
-When making an [annotated](https://git-scm.com/book/en/v2/Git-Basics-Tagging) tag, it is built and published to the [PyPi](https://pypi.org/project/brem/#description).
+When making an [annotated](https://git-scm.com/book/en/v2/Git-Basics-Tagging) tag, it is built, checked and published to [PyPi](https://pypi.org/project/brem/#description).
