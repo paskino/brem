@@ -16,10 +16,12 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: publish-to-conda
-      uses: paskino/conda-package-publish-action@master
+      uses: paskino/conda-package-publish-action@v1.4.0
       with:
         subDir: 'conda'
         channels: 'conda-forge -c paskino'
         AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
         test_all: ${{(github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')) || (github.ref == 'refs/heads/main')}}
         publish: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
+        convert_win: true
+        convert_oxs: true
