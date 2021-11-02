@@ -29,8 +29,12 @@ def version2pep440(version):
 
 git_version_string = subprocess.check_output('git describe', shell=True).decode("utf-8").rstrip()
 
-
-if os.environ.get('CONDA_BUILD', 0) == 0:
+if os.environ.get('CONDA_BUILD', 0) == '1':
+    # if it is a conda build requirements are going to be satisfied by conda
+    install_requires = []
+    cwd = os.path.join(os.environ.get('RECIPE_DIR'),'..')
+    version = git_version_string
+else:
     install_requires = []
     with open('requirements.txt', 'r') as f:
         while True:
@@ -41,11 +45,7 @@ if os.environ.get('CONDA_BUILD', 0) == 0:
                 install_requires.append(line.strip())
     cwd = os.getcwd()
     version = version2pep440( git_version_string )
-else:
-    # if it is a conda build requirements are going to be satisfied by conda
-    install_requires = []
-    cwd = os.path.join(os.environ.get('RECIPE_DIR'),'..')
-    version = git_version_string
+
 
 fname = os.path.join(cwd, 'brem', 'version.py')
 

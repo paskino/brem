@@ -1,3 +1,10 @@
+## v1.x.x
+- fix setup.py for version string
+- set package noarch
+
+##v1.0.4
+- add action to publish conda package
+
 ## v1.0.3
 - Fixed pypi publish GitHub Action
 
