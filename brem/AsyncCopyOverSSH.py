@@ -139,7 +139,7 @@ class AsyncCopyOverSSH(object):
             else:
                 action = 'put'
                 # dest_fname   = kwargs.get('dest_fname', None)
-                dest_fname = self.dest_fname
+                dest_fname = posixpath.join(self.remotedir, filename)
                 if status_callback is not None:
                     status_callback.emit("{} file {}".format(action, filename))
                 a.put_file(filename, dest_fname)
