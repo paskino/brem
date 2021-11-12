@@ -1,13 +1,18 @@
+from brem import AsyncCopyOverSSH
+import os
 from PySide2 import QtCore
 from eqt.threading import Worker
-from brem import BasicRemoteExecutionManager
-import os
+import pysnooper
+import brem
+from brem.brem import BasicRemoteExecutionManager
+
+from time import sleep
+import posixpath
 
 class RemoteAsyncCopyFromSSHSignals(QtCore.QObject):
     status = QtCore.Signal(tuple)
     job_id = QtCore.Signal(int)
 class AsyncCopyFromSSH(object):
-    '''Class to handle async copy of files over SSH'''
     def __init__(self, parent=None):
 
         self.internalsignals = RemoteAsyncCopyFromSSHSignals()
@@ -28,6 +33,7 @@ class AsyncCopyFromSSH(object):
     @property
     def worker(self):
         if self._worker is None:
+            print("creating worker")
             username = self.connection_details['username']
             port = self.connection_details['port']
             host = self.connection_details['host']
@@ -53,7 +59,6 @@ class AsyncCopyFromSSH(object):
                                    'host': host, 
                                    'private_key': private_key,
                                    'localdir': localdir}
-
     def copy_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
         host         = kwargs.get('host', None)
@@ -65,18 +70,19 @@ class AsyncCopyFromSSH(object):
         remotefile   = kwargs.get('remotefile', None)
         remotedir    = kwargs.get('remotedir', None)
         localdir     = kwargs.get('localdir', None)
+        # get the callbacks
+        message_callback  = kwargs.get('message_callback', None)
+        progress_callback = kwargs.get('progress_callback', None)
+        status_callback   = kwargs.get('status_callback', None)
+        for k,v in kwargs.items():
+            print (k,v)
 
         if remotefile is not None:
 
-            # get the callbacks
-            message_callback  = kwargs.get('message_callback', None)
-            progress_callback = kwargs.get('progress_callback', None)
-            status_callback   = kwargs.get('status_callback', None)
             
             
-            from time import sleep
             
-            a = BasicRemoteExecutionManager(host=host,username=username,port=22,private_key=private_key)
+            a=BasicRemoteExecutionManager(host=host,username=username,port=22,private_key=private_key)
 
             a.login(passphrase=False)
             
@@ -102,3 +108,28 @@ class AsyncCopyFromSSH(object):
         
     def GetFile(self):
         self.threadpool.start(self.worker)
+
+if __name__ == '__main__':
+
+    print ("Hallo???")
+    asyncCopy = AsyncCopyFromSSH()
+    
+    username = 'edo'
+    port = 22
+    host = 'vishighmem01.esc.rl.ac.uk'
+    private_key = "C:/Users/ofn77899/.ssh/id_rsa"
+    
+    asyncCopy.setRemoteConnectionSettings(username=username, 
+                                port=port, host=host, private_key=private_key)
+    asyncCopy.SetRemoteFileName(dirname='/home/edo', filename='head.mha')
+    asyncCopy.SetDestinationDir(os.path.abspath('.'))
+    asyncCopy.GetFile()
+
+    # need to keep the interpreter alive until the thread has finished
+    from time import sleep
+    for i in range(100):
+        tc = asyncCopy.threadpool.activeThreadCount()
+        if tc == 0:
+            break
+        # print (tc)
+        sleep(1)
