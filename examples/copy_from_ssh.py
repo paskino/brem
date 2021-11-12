@@ -112,7 +112,11 @@ class AsyncCopyFromSSH(object):
 if __name__ == '__main__':
 
     print ("Hallo???")
-    asyncCopy = AsyncCopyFromSSH()
+    old = False
+    if old:
+        asyncCopy = AsyncCopyFromSSH()
+    else:
+        asyncCopy = AsyncCopyOverSSH()
     
     username = 'edo'
     port = 22
@@ -121,9 +125,16 @@ if __name__ == '__main__':
     
     asyncCopy.setRemoteConnectionSettings(username=username, 
                                 port=port, host=host, private_key=private_key)
-    asyncCopy.SetRemoteFileName(dirname='/home/edo', filename='head.mha')
-    asyncCopy.SetDestinationDir(os.path.abspath('.'))
-    asyncCopy.GetFile()
+    if old:
+        asyncCopy.SetRemoteFileName(dirname='/home/edo', filename='head.mha')
+        asyncCopy.SetDestinationDir(os.path.abspath('.'))
+        asyncCopy.GetFile()
+    else:
+        put=False
+        if put:
+            asyncCopy.GetFile('/home/edo/head.mha', os.path.abspath('.'))
+        else:
+            asyncCopy.PutFile('head.mha', '/home/edo')
 
     # need to keep the interpreter alive until the thread has finished
     from time import sleep

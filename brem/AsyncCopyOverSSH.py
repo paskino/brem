@@ -177,7 +177,7 @@ class AsyncCopyOverSSH(object):
 
     def PutFile(self, filepath, destination_dir):
         self.SetCopyToRemote()
-
+        filepath = os.path.abspath(filepath)
         self.SetLocalDir(os.path.dirname(filepath))
         self.SetFileName(os.path.basename(filepath))
         

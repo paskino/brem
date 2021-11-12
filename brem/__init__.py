@@ -29,7 +29,7 @@ try:
     from .brem import BasicRemoteExecutionManager
     from .brem import RemoteRunControl
     from .brem import RemoteRunControlSignals
-    from .AsyncCopyFromSSH import AsyncCopyFromSSH, RemoteAsyncCopyFromSSHSignals
+    from .AsyncCopyOverSSH import AsyncCopyOverSSH, RemoteAsyncCopyOverSSHSignals
     
 
 except ImportError:
