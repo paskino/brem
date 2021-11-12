@@ -111,7 +111,6 @@ class AsyncCopyFromSSH(object):
 
 if __name__ == '__main__':
 
-    print ("Hallo???")
     old = False
     if old:
         asyncCopy = AsyncCopyFromSSH()
@@ -130,15 +129,44 @@ if __name__ == '__main__':
         asyncCopy.SetDestinationDir(os.path.abspath('.'))
         asyncCopy.GetFile()
     else:
-        put=False
-        if put:
-            asyncCopy.GetFile('/home/edo/head.mha', os.path.abspath('.'))
-        else:
-            asyncCopy.PutFile('head.mha', '/home/edo')
+        import numpy as np
+        a = np.asarray([1,2,3])
+        np.save('test.npy',a)
+        print (asyncCopy.remote)
+        asyncCopy.PutFile('test.npy', '/home/edo')
+        
+        while True:
+            tc = asyncCopy.threadpool.activeThreadCount()
+            if tc == 0:
+                break
+            # print (tc)
+            sleep(1)
+
+        os.rename('test.npy', 'test_orig.npy')
+        asyncCopy._worker = None
+        asyncCopy.GetFile('/home/edo/test.npy', os.path.abspath('.'))
+                
+        while True:
+            tc = asyncCopy.threadpool.activeThreadCount()
+            if tc == 0:
+                break
+            # print (tc)
+            sleep(1)
+
+        a = np.load('test_orig.npy')
+        b = np.load('test.npy')
+        np.testing.assert_array_equal(a,b)
+        os.remove('test.npy')
+        os.remove('test_orig.npy')
+        # put=False
+        # if put:
+        #     asyncCopy.GetFile('/home/edo/head.mha', os.path.abspath('.'))
+        # else:
+        #     asyncCopy.PutFile('head.mha', '/home/edo')
 
     # need to keep the interpreter alive until the thread has finished
     from time import sleep
-    for i in range(100):
+    while True:
         tc = asyncCopy.threadpool.activeThreadCount()
         if tc == 0:
             break

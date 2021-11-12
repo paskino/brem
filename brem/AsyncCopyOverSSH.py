@@ -4,7 +4,6 @@ import paramiko
 from brem import BasicRemoteExecutionManager
 import os, ntpath, posixpath
 import socket
-import pysnooper
 
 class RemoteAsyncCopyOverSSHSignals(QtCore.QObject):
     status = QtCore.Signal(tuple)
@@ -80,7 +79,6 @@ class AsyncCopyOverSSH(object):
                                    'host': host, 
                                    'private_key': private_key,
                                    'remote_os': remote_os}
-    @pysnooper.snoop()
     def copy_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
         host         = kwargs.get('host', None)
@@ -95,13 +93,7 @@ class AsyncCopyOverSSH(object):
         remotedir    = kwargs.get('remotedir', None)
         localdir     = kwargs.get('localdir', None)
         
-        print ("copy_worker")
-        # for k,v in kwargs.items():
-        #     print (k,v)
-        check = [direction, filename, remotedir, localdir]
-        print ("check", check)
         if direction is not None and filename is not None and remotedir is not None and localdir is not None:
-            print ("all copy_worker")
             # get the callbacks
             message_callback  = kwargs.get('message_callback', None)
             progress_callback = kwargs.get('progress_callback', None)
@@ -141,15 +133,18 @@ class AsyncCopyOverSSH(object):
             os.chdir(localdir)
             if direction == 'from':
                 action = 'get'
-                print("{} file {}".format(action, filename))
+                if status_callback is not None:
+                    status_callback.emit("{} file {}".format(action, filename))
                 a.get_file("{}".format(filename))
             else:
                 action = 'put'
                 # dest_fname   = kwargs.get('dest_fname', None)
                 dest_fname = self.dest_fname
-                print("{} file {}".format(action, filename))
+                if status_callback is not None:
+                    status_callback.emit("{} file {}".format(action, filename))
                 a.put_file(filename, dest_fname)
-            print("done")
+            if status_callback is not None:
+                    status_callback.emit("done")
             
             a.logout()
             os.chdir(cwd)
@@ -157,7 +152,7 @@ class AsyncCopyOverSSH(object):
             if progress_callback is not None:
                 progress_callback.emit(100)
         else:
-            print ("something wrong", check)
+            print ("something wrong")
             
         
     def GetFile(self, filepath, destination_dir):
