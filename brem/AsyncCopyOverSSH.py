@@ -4,7 +4,7 @@ import paramiko
 from brem import BasicRemoteExecutionManager
 import os, ntpath, posixpath
 import socket
-from brem import Windows, POSIX
+from .brem import Windows, POSIX
 
 class RemoteAsyncCopyOverSSHSignals(QtCore.QObject):
     status = QtCore.Signal(tuple)
@@ -23,6 +23,7 @@ class AsyncCopyOverSSH(object):
         self.threadpool = QtCore.QThreadPool()
         self.logfile = 'AsyncCopyFromSSH.log'
         self._worker = None
+        self._remote_os = None
         self.SetDestinationFileName(None)
         self.SetRemoteOS(remote_os)
         
@@ -78,6 +79,7 @@ class AsyncCopyOverSSH(object):
             self.remotepath = ntpath
         else:
             raise ValueError('Expected value in {}. Got {}'.format([POSIX,Windows], value))
+        self._remote_os = value
 
     @property
     def signals(self):
@@ -91,8 +93,7 @@ class AsyncCopyOverSSH(object):
             host = self.connection_details['host']
             private_key = self.connection_details['private_key']
             localdir = self.localdir
-            remote_os = self.connection_details['remote_os']
-
+            
             self._worker = Worker(self.copy_worker, 
                                   remotedir=self.remotedir, 
                                   filename = self.filename,
@@ -103,8 +104,7 @@ class AsyncCopyOverSSH(object):
                                   port=port, 
                                   private_key=private_key, 
                                   logfile=self.logfile, 
-                                  update_delay=10,
-                                  remote_os=remote_os
+                                  update_delay=10
                                   )
         return self._worker
 
@@ -148,7 +148,7 @@ class AsyncCopyOverSSH(object):
             
             from time import sleep
             
-            a = BasicRemoteExecutionManager(host=host,username=username,port=22,private_key=private_key, remote_os=remote_os)
+            a = BasicRemoteExecutionManager(host=host,username=username,port=22,private_key=private_key, remote_os=self._remote_os)
 
             try:
                 a.login(passphrase=False)
@@ -210,13 +210,8 @@ class AsyncCopyOverSSH(object):
         self.SetCopyFromRemote()
         self.SetLocalDir(destination_dir)
 
-        if self.connection_details['remote_os'] == 'Windows':
-            remotepath = ntpath
-        else:
-            remotepath = posixpath
-
-        self.SetRemoteDir(remotepath.dirname(filepath))
-        self.SetFileName(remotepath.basename(filepath))
+        self.SetRemoteDir(self.remotepath.dirname(filepath))
+        self.SetFileName(self.remotepath.basename(filepath))
 
         self.threadpool.start(self.worker)
 

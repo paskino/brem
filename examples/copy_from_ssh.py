@@ -2,12 +2,11 @@ from brem import AsyncCopyOverSSH
 import os
 from PySide2 import QtCore
 from eqt.threading import Worker
-import pysnooper
+# import pysnooper
 import brem
 from brem.brem import BasicRemoteExecutionManager
 
 from time import sleep
-import posixpath
 
 class RemoteAsyncCopyFromSSHSignals(QtCore.QObject):
     status = QtCore.Signal(tuple)
@@ -132,8 +131,7 @@ if __name__ == '__main__':
         import numpy as np
         a = np.asarray([1,2,3])
         np.save('test.npy',a)
-        print (asyncCopy.remote)
-        asyncCopy.PutFile('test.npy', '/home/edo')
+        asyncCopy.PutFile('test.npy', '/home/edo/pippo')
         
         while True:
             tc = asyncCopy.threadpool.activeThreadCount()
@@ -144,7 +142,7 @@ if __name__ == '__main__':
 
         os.rename('test.npy', 'test_orig.npy')
         asyncCopy._worker = None
-        asyncCopy.GetFile('/home/edo/test.npy', os.path.abspath('.'))
+        asyncCopy.GetFile('/home/edo/pippo/test.npy', os.path.abspath('.'))
                 
         while True:
             tc = asyncCopy.threadpool.activeThreadCount()
