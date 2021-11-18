@@ -4,44 +4,80 @@ import paramiko
 from brem import BasicRemoteExecutionManager
 import os, ntpath, posixpath
 import socket
+from brem import Windows, POSIX
 
 class RemoteAsyncCopyOverSSHSignals(QtCore.QObject):
     status = QtCore.Signal(tuple)
     job_id = QtCore.Signal(int)
 class AsyncCopyOverSSH(object):
-    '''Class to handle async copy of files over SSH'''
-    def __init__(self, parent=None):
+    '''Class to handle async copy of files over SSH
+    
+    :param remote_os: type of the remote os, can be 'POSIX' or 'Windows', default 'POSIX'
+    :type remote_os: str
+    '''
+    def __init__(self, remote_os=POSIX):
+
+        self.remotepath = self.SetRemoteOS(remote_os)
 
         self.internalsignals = RemoteAsyncCopyOverSSHSignals()
         self.threadpool = QtCore.QThreadPool()
         self.logfile = 'AsyncCopyFromSSH.log'
         self._worker = None
-        self.dest_fname = None
+        self.SetDestinationFileName(None)
+        self.SetRemoteOS(remote_os)
         
     def SetRemoteDir(self, dirname):
+        '''Set the remote directory name
+        
+        :param dirname: remote directory name
+        :type dirname: str
+        '''
         self.remotedir = dirname
 
     def SetFileName(self, filename):
+        '''Set the remote file name
+        
+        :param file: remote file name
+        :type dirname: str
+        '''
         self.filename = filename
     
     def SetDestinationFileName(self, fname):
+        '''Set the destination name
+        
+        :param fname: destination file name
+        :type fname: path
+        '''
         self.dest_fname = fname
 
     def SetLocalDir(self, dirname):
+        '''Set the local directory name
+        
+        :param dirname: local directory name
+        :type dirname: path
+        '''
         self.localdir = dirname
 
     def SetCopyToRemote(self):
+        '''Set the behaviour to copy file from local to remote'''
         self.direction = 'to'
 
     def SetCopyFromRemote(self):
+        '''Set the behaviour to copy file from remote to local'''
         self.direction = 'from'
     
     def SetRemoteOS(self, value):
-        allowed_os = ['Windows', 'POSIX']
-        if value in allowed_os:
-            self.remote_os = value
+        '''Set the remote OS
+        
+        :param value: 'Windows' or 'POSIX'
+        :type value: str'''
+        allowed_os = [Windows, POSIX]
+        if value == POSIX:
+            self.remotepath = posixpath
+        elif value == Windows:
+            self.remotepath = ntpath
         else:
-            raise ValueError('Expected value in {}. Got {}'.format(allowed_os, value))
+            raise ValueError('Expected value in {}. Got {}'.format([POSIX,Windows], value))
 
     @property
     def signals(self):
@@ -73,12 +109,23 @@ class AsyncCopyOverSSH(object):
         return self._worker
 
     def setRemoteConnectionSettings(self, username=None, 
-                                    port= None, host=None, private_key=None, remote_os=None):
+                                    port= None, host=None, private_key=None):
+        '''Set the connection parameter to configure the BasicRemoteExecutionManager
+        
+        :param username: user name on the remote
+        :type username: str
+        :param port: port to connect to
+        :type port: int
+        :param host: host name or IP
+        :type host: str
+        :param private_key: filename for the private key for the SSH connection
+        :type private_key: str or path
+        '''
         self.connection_details = {'username': username, 
                                    'port': port,
                                    'host': host, 
                                    'private_key': private_key,
-                                   'remote_os': remote_os}
+                                   }
     def copy_worker(self, **kwargs):
         # retrieve the appropriate parameters from the kwargs
         host         = kwargs.get('host', None)
@@ -88,7 +135,6 @@ class AsyncCopyOverSSH(object):
         logfile      = kwargs.get('logfile', None)
         update_delay = kwargs.get('update_delay', None)
         direction    = kwargs.get('direction', None)
-        remote_os    = kwargs.get('remote_os', None)
         filename     = kwargs.get('filename', None)
         remotedir    = kwargs.get('remotedir', None)
         localdir     = kwargs.get('localdir', None)
@@ -138,8 +184,7 @@ class AsyncCopyOverSSH(object):
                 a.get_file("{}".format(filename))
             else:
                 action = 'put'
-                # dest_fname   = kwargs.get('dest_fname', None)
-                dest_fname = posixpath.join(self.remotedir, filename)
+                dest_fname = self.remotepath.join(self.remotedir, filename)
                 if status_callback is not None:
                     status_callback.emit("{} file {}".format(action, filename))
                 a.put_file(filename, dest_fname)
@@ -156,6 +201,12 @@ class AsyncCopyOverSSH(object):
             
         
     def GetFile(self, filepath, destination_dir):
+        '''Configures and starts an async copy from remote to local
+        
+        :param filepath: path to the remote file to get
+        :type filepath: str or path
+        :param destination_dir: local destination directory
+        :type destination_dir: str or path'''
         self.SetCopyFromRemote()
         self.SetLocalDir(destination_dir)
 
@@ -171,6 +222,12 @@ class AsyncCopyOverSSH(object):
 
 
     def PutFile(self, filepath, destination_dir):
+        '''Configures and starts an async copy from local to remote
+        
+        :param filepath: path to the local file to copy to the remote
+        :type filepath: str or path
+        :param destination_dir: remote destination directory
+        :type destination_dir: str or path'''
         self.SetCopyToRemote()
         filepath = os.path.abspath(filepath)
         self.SetLocalDir(os.path.dirname(filepath))
@@ -178,7 +235,6 @@ class AsyncCopyOverSSH(object):
         
         self.SetRemoteDir(destination_dir)
         
-        print ("is worker None", self._worker is None)
         self.threadpool.start(self.worker)
 
 

@@ -7,13 +7,21 @@ from brem.version import version as brem_version
 
 remotepath = os.path
 
+POSIX = 'POSIX'
+Windows = 'Windows'
+
 class BasicRemoteExecutionManager(object):
-    """ Main class of a brem"""
+    """BasicRemoteExecutionManager
+    
+    logfile=None, port=None, host=None,username=None,
+        private_key=None, remote_os=None, logfile='ssh.log'
+    
+    """
     
 
-    def __init__(self,logfile=None, port=None, host=None,username=None,\
-        private_key=None, remote_os=None):
-        self.logfile = "ssh.log"
+    def __init__(self, port=None, host=None,username=None,\
+        private_key=None, remote_os=None, logfile='ssh.log'):
+        self.logfile = logfile
 
         self.port = port
         self.host = host
@@ -37,7 +45,7 @@ class BasicRemoteExecutionManager(object):
         global remotepath
         remotepath = posixpath
         if remote_os is not None:
-            if remote_os == 'Windows':
+            if remote_os == Windows:
                 remotepath = ntpath
 
         ssh.util.log_to_file(self.logfile)
