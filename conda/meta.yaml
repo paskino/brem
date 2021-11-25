@@ -23,7 +23,6 @@ test:
 requirements:
   build:
     - python
-    - pip
     - setuptools
   run:
     - python

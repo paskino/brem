@@ -212,7 +212,7 @@ class AsyncCopyOverSSH(object):
 
         self.SetRemoteDir(self.remotepath.dirname(filepath))
         self.SetFileName(self.remotepath.basename(filepath))
-
+        # self.worker will create the worker
         self.threadpool.start(self.worker)
 
 
