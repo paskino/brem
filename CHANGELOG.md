@@ -1,8 +1,9 @@
-## v1.x.x
+## v1.1.0
 - fix setup.py for version string
 - set package noarch
+- Adds class AsyncCopyOverSSH to handle async file copy
 
-##v1.0.4
+## v1.0.4
 - add action to publish conda package
 
 ## v1.0.3
